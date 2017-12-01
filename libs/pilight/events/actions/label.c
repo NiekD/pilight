@@ -460,7 +460,7 @@ static void *thread(void *param) {
 					match3 = 1;
 				}
 			}
-		opt = opt->next;
+			opt = opt->next;
 		}
 		if(match1 == 1 && match2 == 1 && match3 == 1) {
 			break;
