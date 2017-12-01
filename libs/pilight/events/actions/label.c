@@ -62,7 +62,7 @@ static int checkArguments(struct rules_actions_t *obj) {
 	char **array = NULL;
 	double nr1 = 0.0, nr2 = 0.0, nr3 = 0.0, nr4 = 0.0, nr5 = 0.0, nr6 = 0.0;
 	int nrvalues = 0, l = 0, i = 0, match = 0;
-	int	nrunits = (sizeof(units)/sizeof(units[0]));
+	int nrunits = (sizeof(units)/sizeof(units[0]));
 
 	jdevice = json_find_member(obj->parsedargs, "DEVICE");
 	jto = json_find_member(obj->parsedargs, "TO");
@@ -317,7 +317,7 @@ static void *thread(void *param) {
 	char *new_label = NULL, *old_label = NULL, *label = NULL, **array = NULL;
 	char *new_color = NULL, *old_color = NULL, *color = NULL, *blink = NULL, *new_blink = NULL, *old_blink = NULL;
 	int seconds_after = 0, type_after = 0, free_label = 0;
-	int	l = 0, i = 0, nrunits = (sizeof(units)/sizeof(units[0]));
+	int l = 0, i = 0, nrunits = (sizeof(units)/sizeof(units[0]));
 	int seconds_for = 0, type_for = 0, timer = 0;
 
 	event_action_started(pth);
@@ -346,7 +346,7 @@ static void *thread(void *param) {
 						fprintf(stderr, "out of memory\n");
 						exit(EXIT_FAILURE);
 					}
-				strcpy(new_blink, blink);
+					strcpy(new_blink, blink);
 				} else {
 					logprintf(LOG_NOTICE, "label action \"BLINK\" value must be either \"on\" or \"off\"");
 				}
@@ -376,7 +376,7 @@ static void *thread(void *param) {
 			}
 		}
 	}
-	
+
 	if((jafter = json_find_member(json, "AFTER")) != NULL) {
 		if((jdvalues = json_find_member(jafter, "value")) != NULL) {
 			jaseconds = json_find_element(jdvalues, 0);
