@@ -43,13 +43,8 @@ Changes the text and color of a generic label device.
 +----------+------------------+---------------------+---------------------------------------------------+
 | **Name** | **Required**     | **Multiple Values** | **Description**                                   |
 +----------+------------------+---------------------+---------------------------------------------------+
-| BLINK    | |no|             | |no|                | Blinking label text on or off                     |
+| BLINK    | |no|             | |no|                | Blinking label text on OR off                     |
 +----------+------------------+---------------------+---------------------------------------------------+
-
-.. note:: Valid values for ``BLINK``
-
-   - on
-   - off
 
 .. rubric:: Examples
 
