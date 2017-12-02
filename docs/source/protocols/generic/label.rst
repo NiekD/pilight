@@ -66,11 +66,19 @@ Label
 +------------------+----------------------+
 | color            | *any color*          |
 +------------------+----------------------+
-| blink            | ``"on"`` or ``"off"``|
-+------------------+----------------------+
 
 .. note::
 
    Please notice that the label color is not validated in any way. The color information is just forwarded to the GUIs as is. So it could be that some GUIs do not support certain color naming. Using hex colors is therefore the safest, e.g. #000000.
+
+.. versionadded:: 8.0
+
++------------------+----------------------+
+| **Option**       | **Value**            |
++------------------+----------------------+
+| blink            | on / off             |
++------------------+----------------------+
+
+.. note::
 
    The blink option is optional, but must be configured if blinking of the label is desired.
