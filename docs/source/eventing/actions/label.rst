@@ -22,7 +22,7 @@ Changes the text and color of a generic label device.
 +----------+------------------+---------------------+---------------------------------------------------+
 | **Name** | **Required**     | **Multiple Values** | **Description**                                   |
 +----------+------------------+---------------------+---------------------------------------------------+
-| COLOR    | |no|             | |no|                | New color                                         |
+| COLOR    | |no|             | |no|                | New color. If omitted, color is set to black"     |
 +----------+------------------+---------------------+---------------------------------------------------+
 | FOR      | |no|             | |no|                | | Determine how long this new label lasts         |
 |          |                  |                     | | before we change back to the previous label     |
