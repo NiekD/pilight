@@ -156,10 +156,13 @@ static void *thread(void *param) {
 
 	action_sendmail->nrthreads++;
 
-	struct mail_t mail;
-	char *shost = NULL, *suser = NULL, *spassword = NULL;
+	struct mail_t *mail = MALLOC(sizeof(struct mail_t));
+	char *shost = NULL, *suser = NULL, *spassword = NULL, *stmp = NULL;
 	int sport = 0, ssl = 0;
 
+	if(mail == NULL) {
+		OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+	}
 	jmessage = json_find_member(arguments, "MESSAGE");
 	jsubject = json_find_member(arguments, "SUBJECT");
 	jto = json_find_member(arguments, "TO");
@@ -176,18 +179,35 @@ static void *thread(void *param) {
 				jval1->tag == JSON_STRING && jval2->tag == JSON_STRING && jval3->tag == JSON_STRING) {
 
 				//smtp settings
-				settings_find_string("smtp-sender", &mail.from);
+				settings_find_string("smtp-sender", &stmp);
+				mail->from = MALLOC(strlen(stmp)+1);
+				if(mail->from == NULL) {
+					OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+				}
+				strcpy(mail->from, stmp);
 				settings_find_string("smtp-host", &shost);
 				settings_find_number("smtp-port", &sport);
 				settings_find_string("smtp-user", &suser);
 				settings_find_string("smtp-password", &spassword);
 				settings_find_number("smtp-ssl", &ssl);
 
-				mail.subject = jval1->string_;
-				mail.message = jval2->string_;
-				mail.to = jval3->string_;
+				mail->subject = MALLOC(strlen(jval1->string_)+1);
+				if(mail->subject == NULL) {
+					OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+				}
+				strcpy(mail->subject, jval1->string_);
+				mail->message = MALLOC(strlen(jval2->string_)+1);
+				if(mail->message == NULL) {
+					OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+				}
+				strcpy(mail->message, jval2->string_);
+				mail->to = MALLOC(strlen(jval3->string_)+1);
+				if(mail->to == NULL) {
+					OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+				}
+				strcpy(mail->to, jval3->string_);
 
-				if(sendmail(shost, suser, spassword, sport, ssl, &mail, callback) != 0) {
+				if(sendmail(shost, suser, spassword, sport, ssl, mail, callback) != 0) {
 					logprintf(LOG_ERR, "Sendmail failed to send message \"%s\"", jval2->string_);
 				}
 			}
