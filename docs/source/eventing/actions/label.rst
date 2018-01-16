@@ -40,12 +40,14 @@ Changes the text and color of a generic label device.
 
 .. versionadded:: 8.0
 
-+----------+------------------+---------------------+---------------------------------------------------+
-| **Name** | **Required**     | **Multiple Values** | **Description**                                   |
-+----------+------------------+---------------------+---------------------------------------------------+
-| BLINK    | |no|             | |no|                | Blinking label text ``on`` or ``off``             |
-+----------+------------------+---------------------+---------------------------------------------------+
-
++----------+------------------+---------------------+----------------------------------------------------+
+| **Name** | **Required**     | **Multiple Values** | **Description**                                    |
++----------+------------------+---------------------+----------------------------------------------------+
+| BLINK    | |no|             | |no|                | Blinking label text ``on`` or ``off``              |
++----------+------------------+---------------------+----------------------------------------------------+
+| BGCOLOR  | |no|             | |no|                | New background color.                              |
+|          |                  |                     | If omitted, background color is left unchanged     |
++----------+------------------+---------------------+----------------------------------------------------+
 .. rubric:: Examples
 
 .. code-block:: console
@@ -61,3 +63,4 @@ Changes the text and color of a generic label device.
 .. code-block:: console
 
    IF 1 == 1 THEN label DEVICE tempLabel TO Door was opened BLINK on FOR 1 MINUTE
+   IF 1 == 1 THEN label DEVICE tempLabel TO Door was opened COLOR #000000 BGCOLOR #FF0000
