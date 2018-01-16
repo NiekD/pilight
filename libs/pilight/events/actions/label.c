@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2013 - 2017 CurlyMo & Niek
+	Copyright (C) 2013 - 2018 CurlyMo & Niek
 
 	This file is part of pilight.
 
@@ -49,6 +49,7 @@ static int checkArguments(struct rules_actions_t *obj) {
 	struct JsonNode *jafter = NULL;
 	struct JsonNode *jcolor = NULL;
 	struct JsonNode *jblink = NULL;
+	struct JsonNode *jbgcolor = NULL;
 	struct JsonNode *javalues = NULL;
 	struct JsonNode *jbvalues = NULL;
 	struct JsonNode *jcvalues = NULL;
@@ -60,9 +61,9 @@ static int checkArguments(struct rules_actions_t *obj) {
 	struct JsonNode *jdchild = NULL;
 	struct JsonNode *jechild = NULL;
 	char **array = NULL;
-	double nr1 = 0.0, nr2 = 0.0, nr3 = 0.0, nr4 = 0.0, nr5 = 0.0, nr6 = 0.0;
+	double nr1 = 0.0, nr2 = 0.0, nr3 = 0.0, nr4 = 0.0, nr5 = 0.0, nr6 = 0.0, nr7 =0.0;
 	int nrvalues = 0, l = 0, i = 0, match = 0;
-	int nrunits = (sizeof(units)/sizeof(units[0]));
+	int	nrunits = (sizeof(units)/sizeof(units[0]));
 
 	jdevice = json_find_member(obj->parsedargs, "DEVICE");
 	jto = json_find_member(obj->parsedargs, "TO");
@@ -70,6 +71,7 @@ static int checkArguments(struct rules_actions_t *obj) {
 	jafter = json_find_member(obj->parsedargs, "AFTER");
 	jcolor = json_find_member(obj->parsedargs, "COLOR");
 	jblink = json_find_member(obj->parsedargs, "BLINK");
+	jbgcolor = json_find_member(obj->parsedargs, "BGCOLOR");
 
 	if(jdevice == NULL) {
 		logprintf(LOG_ERR, "label action is missing a \"DEVICE\"");
@@ -92,6 +94,10 @@ static int checkArguments(struct rules_actions_t *obj) {
 		json_find_number(jblink, "order", &nr6);
 	}
 
+	if(jbgcolor != NULL) {
+		json_find_number(jbgcolor, "order", &nr7);
+	}
+
 	if(jfor != NULL) {
 		json_find_number(jfor, "order", &nr3);
 		if(nr3 < nr2) {
@@ -102,6 +108,9 @@ static int checkArguments(struct rules_actions_t *obj) {
 			return -1;
 		} else if(nr6 > 0 && nr3 < nr6) {
 			logprintf(LOG_ERR, "label actions are formatted as \"label DEVICE ... TO ... BLINK ... FOR ...\"");
+			return -1;
+		} else if(nr7 > 0 && nr3 < nr7) {
+			logprintf(LOG_ERR, "label actions are formatted as \"label DEVICE ... TO ... BGCOLOR ... FOR ...\"");
 			return -1;
 		}
 	}
@@ -117,8 +126,10 @@ static int checkArguments(struct rules_actions_t *obj) {
 		} else if(nr6 > 0 && nr4 < nr6) {
 			logprintf(LOG_ERR, "label actions are formatted as \"label DEVICE ... TO ... BLINK ... AFTER ...\"");
 			return -1;
-		}
-	}
+		} else if(nr7 > 0 && nr4 < nr7) {
+			logprintf(LOG_ERR, "label actions are formatted as \"label DEVICE ... TO ... BGCOLOR ... AFTER ...\"");
+			return -1;
+		}	}
 
 	if((int)nr1 != 1 || (int)nr2 != 2) {
 		logprintf(LOG_ERR, "label actions are formatted as \"label DEVICE ... TO ...\"");
@@ -129,6 +140,9 @@ static int checkArguments(struct rules_actions_t *obj) {
 		return -1;
 	} else if(nr6 > 0 && nr5 == 0 && nr6 != 3) {
 		logprintf(LOG_ERR, "label actions are formatted as \"label DEVICE ... TO ... BLINK ...\"");
+		return -1;	
+	} else if(nr7 > 0 && nr5 == 0 && nr7 != 3) {
+		logprintf(LOG_ERR, "label actions are formatted as \"label DEVICE ... TO ... BGCOLOR ...\"");
 		return -1;	
 	} else if(nr6 > 0 && nr5 > 0 && ((nr6 != 3 && nr5 !=3) || (nr6 != 4 && nr5 != 4))) {
 		logprintf(LOG_ERR, "label actions are formatted as \"label DEVICE ... TO ... COLOR ... BLINK ...\"");
@@ -267,6 +281,21 @@ static int checkArguments(struct rules_actions_t *obj) {
 		}
 	}
 
+	nrvalues = 0;
+	if(jbgcolor != NULL) {
+		if((jevalues = json_find_member(jbgcolor, "value")) != NULL) {
+			jechild = json_first_child(jevalues);
+			while(jechild) {
+				nrvalues++;
+				jechild = jechild->next;
+			}
+		}
+		if(nrvalues != 1) {
+			logprintf(LOG_ERR, "label action \"BGCOLOR\" only takes one argument");
+			return -1;
+		}
+	}
+
 	if((jbvalues = json_find_member(jdevice, "value")) != NULL) {
 		jbchild = json_first_child(jbvalues);
 		while(jbchild) {
@@ -307,6 +336,7 @@ static void *thread(void *param) {
 	struct JsonNode *jfor = NULL;
 	struct JsonNode *jcolor = NULL;
 	struct JsonNode *jblink = NULL;
+	struct JsonNode *jbgcolor = NULL;
 	struct JsonNode *javalues = NULL;
 	struct JsonNode *jcvalues = NULL;
 	struct JsonNode *jdvalues = NULL;
@@ -315,12 +345,16 @@ static void *thread(void *param) {
 	struct JsonNode *jaseconds = NULL;
 	struct JsonNode *jvalues = NULL;
 	char *new_label = NULL, *old_label = NULL, *label = NULL, **array = NULL;
-	char *new_color = NULL, *old_color = NULL, *color = NULL, *blink = NULL, *new_blink = NULL, *old_blink = NULL;
+	char *new_color = NULL, *old_color = NULL, *color = NULL;
+	char *new_blink = NULL, *old_blink = NULL, *blink = NULL;
+	char *new_bgcolor = NULL, *old_bgcolor = NULL, *bgcolor = NULL;
 	int seconds_after = 0, type_after = 0, free_label = 0;
-	int l = 0, i = 0, nrunits = (sizeof(units)/sizeof(units[0]));
+	int	l = 0, i = 0, nrunits = (sizeof(units)/sizeof(units[0]));
 	int seconds_for = 0, type_for = 0, timer = 0;
 
 	event_action_started(pth);
+	char *test = json_stringify(json, 0);
+	logprintf(LOG_INFO, "======================================================== %s", test);
 
 	if((jcolor = json_find_member(json, "COLOR")) != NULL) {
 		if((jevalues = json_find_member(jcolor, "value")) != NULL) {
@@ -346,10 +380,24 @@ static void *thread(void *param) {
 						fprintf(stderr, "out of memory\n");
 						exit(EXIT_FAILURE);
 					}
-					strcpy(new_blink, blink);
+				strcpy(new_blink, blink);
 				} else {
 					logprintf(LOG_NOTICE, "label action \"BLINK\" value must be either \"on\" or \"off\"");
 				}
+			}
+		}
+	}
+
+	if((jbgcolor = json_find_member(json, "BGCOLOR")) != NULL) {
+		if((jevalues = json_find_member(jbgcolor, "value")) != NULL) {
+			jbgcolor = json_find_element(jevalues, 0);
+			if(jbgcolor != NULL && jbgcolor->tag == JSON_STRING) {
+				bgcolor = jbgcolor->string_;
+				if((new_bgcolor = MALLOC(strlen(bgcolor)+1)) == NULL) {
+						fprintf(stderr, "out of memory\n");
+						exit(EXIT_FAILURE);
+				}
+				strcpy(new_bgcolor, bgcolor);
 			}
 		}
 	}
@@ -376,7 +424,7 @@ static void *thread(void *param) {
 			}
 		}
 	}
-
+	
 	if((jafter = json_find_member(json, "AFTER")) != NULL) {
 		if((jdvalues = json_find_member(jafter, "value")) != NULL) {
 			jaseconds = json_find_element(jdvalues, 0);
@@ -426,7 +474,7 @@ static void *thread(void *param) {
 
 	/* Store current label */
 	struct devices_t *tmp = pth->device;
-	int match1 = 0, match2 = 0, match3 = 0;
+	int match1 = 0, match2 = 0, match3 = 0, match4 = 0;
 	while(tmp) {
 		struct devices_settings_t *opt = tmp->settings;
 		while(opt) {
@@ -460,7 +508,17 @@ static void *thread(void *param) {
 					match3 = 1;
 				}
 			}
-			opt = opt->next;
+			if(strcmp(opt->name, "bgcolor") == 0) {
+				if(opt->values->type == JSON_STRING) {
+					if((old_bgcolor = MALLOC(strlen(opt->values->string_)+1)) == NULL) {
+						fprintf(stderr, "out of memory\n");
+						exit(EXIT_FAILURE);
+					}
+					strcpy(old_bgcolor, opt->values->string_);
+					match4 = 1;
+				}
+			}
+		opt = opt->next;
 		}
 		if(match1 == 1 && match2 == 1 && match3 == 1) {
 			break;
@@ -499,12 +557,13 @@ static void *thread(void *param) {
 						}
 						strcpy(new_label, label);
 						/*
-						 * We're not switching when current label, color or blink is not the same as
+						 * We're not switching when current label, color , bgcolor or blink is not the same as
 						 * the old label, old color and old blink.
 						 */
 						if(old_label == NULL || strcmp(old_label, new_label) != 0 ||
 							(old_color != NULL && new_color != NULL && strcmp(old_color, new_color) != 0) ||
-							(old_blink != NULL && new_blink != NULL && strcmp(old_blink, new_blink) != 0)							) {
+							(old_blink != NULL && new_blink != NULL && strcmp(old_blink, new_blink) != 0) ||
+							(old_bgcolor != NULL && new_bgcolor != NULL && strcmp(old_bgcolor, new_bgcolor) != 0)) {
 							if(pilight.control != NULL) {
 								jvalues = json_mkobject();
 								if(color != NULL) {
@@ -512,6 +571,9 @@ static void *thread(void *param) {
 								}
 								if(match3 == 1 && blink != NULL){
 									json_append_member(jvalues, "blink", json_mkstring(blink));
+								}
+								if(match4 == 1 && bgcolor != NULL){
+									json_append_member(jvalues, "bgcolor", json_mkstring(bgcolor));
 								}
 								json_append_member(jvalues, "label", json_mkstring(label));
 
@@ -537,8 +599,8 @@ static void *thread(void *param) {
 	 * We only need to restore the label if it was actually changed
 	 */
 	if(seconds_for > 0 && ((old_label != NULL && new_label != NULL && strcmp(old_label, new_label) != 0) ||
-		(old_color != NULL && new_color != NULL && strcmp(old_color, new_color) != 0) ||
-		(old_blink != 0 && new_blink != 0 && old_blink != new_blink) )) {
+	   (old_color != NULL && new_color != NULL && strcmp(old_color, new_color) != 0) ||
+	   (old_blink != 0 && new_blink != 0 && old_blink != new_blink) )) {
 		timer = 0;
 		while(pth->loop == 1) {
 			if(seconds_for == timer) {
@@ -549,6 +611,9 @@ static void *thread(void *param) {
 					}
 					if(match3 == 1 && old_blink != 0) {
 						json_append_member(jvalues, "blink", json_mkstring(old_blink));
+					}
+					if(match4 == 1 && old_bgcolor != 0) {
+						json_append_member(jvalues, "bgcolor", json_mkstring(old_bgcolor));
 					}
 					json_append_member(jvalues, "label", json_mkstring(old_label));
 					pilight.control(pth->device, NULL, json_first_child(jvalues), ACTION);
@@ -585,7 +650,21 @@ static void *thread(void *param) {
 	if(new_color != NULL) {
 		FREE(new_color);
 	}
+	if(old_blink != NULL) {
+		FREE(old_blink);
+	}
 
+	if(new_blink != NULL) {
+		FREE(new_blink);
+	}
+
+	if(old_bgcolor != NULL) {
+		FREE(old_bgcolor);
+	}
+
+	if(new_bgcolor != NULL) {
+		FREE(new_bgcolor);
+	}
 	event_action_stopped(pth);
 
 	return (void *)NULL;
@@ -627,6 +706,7 @@ void actionLabelInit(void) {
 	options_add(&action_label->options, 'd', "FOR", OPTION_OPT_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
 	options_add(&action_label->options, 'e', "COLOR", OPTION_OPT_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
 	options_add(&action_label->options, 'f', "BLINK", OPTION_OPT_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
+	options_add(&action_label->options, 'g', "BGCOLOR", OPTION_OPT_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
 
 	action_label->run = &run;
 	action_label->checkArguments = &checkArguments;
