@@ -29,6 +29,7 @@ Label
    -l --label=label         show a specific label
    -c --color=color         give the label a specific color
    -b --blink=on|off        enable or disable blinking of the label
+   -g --bgcolor=color       give the label a specific background color
 
 
 .. rubric:: Config
@@ -44,7 +45,8 @@ Label
            "id": 100
          }],
          "label": "test1234",
-         "color": "red",
+         "color": "#FFFFFF",
+         "bgcolor": "#FF0000"
          "blink": "off"
        }
      },
@@ -78,7 +80,10 @@ Label
 +------------------+----------------------+
 | blink            | on / off             |
 +------------------+----------------------+
-
+| bgcolor          | *any color*          |
++------------------+----------------------+
 .. note::
 
-   The blink option is optional, but must be configured if blinking of the label is desired.
+   The blink- and bgcolor options are optional, but must be configured if blinking or setting the background color of the label is desired.
+   
+  Please notice that also the background color is not validated in any way. See the note for the color option above.
