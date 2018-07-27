@@ -472,7 +472,7 @@ static void http_client_close(uv_poll_t *req) {
 	uv_timer_stop(request->timer_req);
 
 	if(request->reading == 1) {
-		if(request->has_length == 0 && request->has_chunked == 0) {
+		if(request->has_length == 0) {
 			if(request->callback != NULL && request->called == 0) {
 				request->called = 1;
 				request->callback(request->status_code, request->content, strlen(request->content), request->mimetype, request->userdata);
@@ -483,8 +483,10 @@ static void http_client_close(uv_poll_t *req) {
 		 * that was disrupted early.
 		 */
 			if(request->callback != NULL && request->called == 0) {
-				request->called = 1;
-				request->callback(408, NULL, 0, NULL, request->userdata);
+				if(request->has_chunked == 1) {
+					request->called = 1;
+					request->callback(408, NULL, 0, NULL, request->userdata);
+				}
 			}
 		}
 	} else if(request->error == 1) {
