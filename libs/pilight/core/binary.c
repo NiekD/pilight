@@ -28,8 +28,9 @@
 #define BITS_MSB_FIRST_TO_VALUE(bits, s, e, result)	\
 	unsigned long long mask = 1;			\
 	result = 0;					\
-	for(; e > 0 && s<=e; mask <<= 1)				\
-		if(bits[e--] != 0)			\
+	e++;						\
+	for(; e > 0 && s<e; mask <<= 1)			\
+		if(bits[--e] != 0)			\
 			result |= mask
 
 #define VALUE_TO_BITS_MSB_FIRST(value, bits, length)	\
@@ -99,4 +100,20 @@ int decToBinRevUl(unsigned long long n, int *binary) {
 	int len;
 	VALUE_TO_BITS_LSB_FIRST(n, binary, len);
 	return len - 1; // return index, not count.
+}
+
+int binToSignedRev(const int *binary, int s, int e) { //  0<=s<=e, binary[s(msb) .. e(lsb)]
+	int result = binToDecRev(binary, s, e);
+	if (binary[s]) {
+		result -= 1<<(e-s+1);
+	}
+	return result;
+}
+
+int binToSigned(const int *binary, int s, int e) { //  0<=s<=e, binary[s(lsb) .. e(msb)]
+	int result = binToDec(binary, s, e);
+	if (binary[e]) {
+		result -= 1<<(e-s+1);
+	}
+	return result;
 }

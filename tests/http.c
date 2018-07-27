@@ -30,6 +30,8 @@
 #define	POST	1
 #define BUFSIZE 1024*1024
 
+void *_userdata = NULL;
+
 /*
  * FIXME
  * - 300 urls
@@ -65,6 +67,39 @@ static struct tests_t {
 				"Connection: close\r\n"
 				"Content-Type: %s\r\n\r\n"
 				"%s"
+	},
+	{ "plain get (ipv6)", GET, "http://[::1]:10080/", 10080, 0, 1, 200, 12, "text/html", "Hello World!", "",
+			"GET / HTTP/1.1\r\n"
+				"Host: ::1\r\n"
+				"User-Agent: pilight\r\n"
+				"Connection: close\r\n\r\n",
+			"HTTP/1.1 200 OK\r\n"
+				"Date: Sun, 30 Oct 2016 15:07:58 GMT\r\n"
+				"Server: Apache/2.4.23 (FreeBSD) PHP/5.6.26\r\n"
+				"Last-Modified: Tue, 22 Oct 2013 15:02:41 GMT\r\n"
+				"ETag: \"d5-4e955b12f4640\"\r\n"
+				"Accept-Ranges: bytes\r\n"
+				"Content-Length: %d\r\n"
+				"Connection: close\r\n"
+				"Content-Type: %s\r\n\r\n"
+				"%s"
+	},
+	// Content-Length is actually 12 bytes
+	{ "too big content-length", GET, "http://127.0.0.1:10080/", 10080, 0, 1, 408, 0, NULL, NULL, "",
+			"GET / HTTP/1.1\r\n"
+				"Host: 127.0.0.1\r\n"
+				"User-Agent: pilight\r\n"
+				"Connection: close\r\n\r\n",
+			"HTTP/1.1 200 OK\r\n"
+				"Date: Sun, 30 Oct 2016 15:07:58 GMT\r\n"
+				"Server: Apache/2.4.23 (FreeBSD) PHP/5.6.26\r\n"
+				"Last-Modified: Tue, 22 Oct 2013 15:02:41 GMT\r\n"
+				"ETag: \"d5-4e955b12f4640\"\r\n"
+				"Accept-Ranges: bytes\r\n"
+				"Content-Length: 18\r\n"
+				"Connection: close\r\n"
+				"Content-Type: %s\r\n\r\n"
+				"Hello World!"
 	},
 	{ "plain get ssl", GET, "https://127.0.0.1:10443/", 10443, 1, 1, 200, 12, "text/html", "Hello World!", "",
 			"GET / HTTP/1.1\r\n"
@@ -114,6 +149,21 @@ static struct tests_t {
 				"Content-Type: %s\r\n\r\n"
 				"%s"
 	},
+	{ "big file get without content-length", GET, "http://127.0.0.1:10080/LICENSE.txt", 10080, 0, 1, 200, 35146, "text/plain", gplv3, "",
+			"GET /LICENSE.txt HTTP/1.1\r\n"
+				"Host: 127.0.0.1\r\n"
+				"User-Agent: pilight\r\n"
+				"Connection: close\r\n\r\n",
+			"HTTP/1.1 200 OK\r\n"
+				"Date: Sun, 30 Oct 2016 15:07:58 GMT\r\n"
+				"Server: Apache/2.4.23 (FreeBSD) PHP/5.6.26\r\n"
+				"Last-Modified: Tue, 22 Oct 2013 15:02:41 GMT\r\n"
+				"ETag: \"d5-4e955b12f4640\"\r\n"
+				"Accept-Ranges: bytes\r\n"
+				"Connection: close\r\n"
+				"Content-Type: %s\r\n\r\n"
+				"%s"
+	},
 	{ "chunked get", GET, "http://127.0.0.1:10080/test.jpg", 10080, 0, 0, 200, 30, NULL, "123456789012345678901234567890", "",
 		"GET /test.jpg HTTP/1.1\r\n"
 			"Host: 127.0.0.1\r\n"
@@ -140,15 +190,26 @@ static struct tests_t {
 			"1234567890123456789\r\n"
 			"0\r\n\r\n"
 	},
-	{ "404 header, ssl, and lower case headers", GET, "https://127.0.0.1:10443/foobar", 10443, 1, 1, 404, 0, "text/plain", "", "",
+	{ "partial chunked get", GET, "http://127.0.0.1:10080/test.jpg", 10080, 0, 0, 408, 0, NULL, NULL, "",
+		"GET /test.jpg HTTP/1.1\r\n"
+			"Host: 127.0.0.1\r\n"
+			"User-Agent: pilight\r\n"
+			"Connection: close\r\n\r\n",
+		"HTTP/1.1 200 OK\r\n"
+			"Keep-Alive: timeout=15, max=100\r\n"
+			"Transfer-Encoding: chunked\r\n\r\n"
+			"1E\r\n"
+			"123456789012345678901234567890\r\n"
+	},
+	{ "404 header, ssl, and lower case headers", GET, "https://127.0.0.1:10443/foobar", 10443, 1, 1, 404, 108, "text/plain", "<html><head><title>Not Found</title></head><body>Sorry, the object you requested was not found.</body><html>", "",
 		"GET /foobar HTTP/1.1\r\n"
 			"Host: 127.0.0.1\r\n"
 			"User-Agent: pilight\r\n"
 			"Connection: close\r\n\r\n",
 		"HTTP/1.1 404 Not Found\r\n"
-			"Content-length: 1%d8\r\n"
+			"Content-length: %d\r\n"
 			"Content-type: %s\r\n\r\n"
-			"<html><head><title>Not Found</title></head><body>Sorry, the object you requested was not found.</body><html>"
+			"%s"
 	},
 	{ "simple post", POST, "http://127.0.0.1:10080/index.php?foo=bar", 10080, 0, 1, 200, 55, "application/json", "", "{\"foo\":\"bar\"}",
 		"POST /index.php?foo=bar HTTP/1.0\r\n"
@@ -203,6 +264,17 @@ static struct tests_t {
 				"Content-Type: %s\r\n\r\n"
 				"%s"
 	},
+	{ "connection made but no response", GET, "http://127.0.0.1:10080/", 10080, 0, 0, 408, 0, NULL, NULL, NULL,
+			"GET / HTTP/1.1\r\n"
+				"Host: 127.0.0.1\r\n"
+				"User-Agent: pilight\r\n"
+				"Connection: close\r\n\r\n",
+			NULL
+	},
+	{ "ip exists but no connection", GET, "http://127.0.0.1:10080/", 10081, 0, 0, 404, 0, NULL, NULL, NULL,
+			NULL,
+			NULL
+	},
 	{ "invalid url (getaddrinfo error)", GET, "http://WvQTxNJ13BJUBC62R8PM.com/", 10080, 0, 1, 404, 0, NULL, NULL, "",
 			NULL,
 			NULL
@@ -214,7 +286,6 @@ static uv_thread_t pth;
 static uv_thread_t pth1;
 static int testnr = 0;
 static int http_server = 0;
-static int http_client = 0;
 static int http_loop = 1;
 static int is_ssl = 0;
 static int is_ssl_init = 0;
@@ -232,6 +303,7 @@ static void callback(int code, char *data, int size, char *type, void *userdata)
 	if(tests[testnr].type != NULL) {
 		CuAssertStrEquals(gtc, type, tests[testnr].type);
 	}
+	CuAssertTrue(gtc, _userdata == userdata);
 
 	testnr++;
 
@@ -271,6 +343,7 @@ static void http_wait(void *param) {
 	char *message = NULL;
 	int n = 0, r = 0, len = 0;
 	int doread = 0, dowrite = 0;
+	int http_client = 0;
 	fd_set fdsread;
 	fd_set fdswrite;
 
@@ -303,11 +376,19 @@ static void http_wait(void *param) {
 		if(doquit == 2) {
 			http_loop = 0;
 #ifdef _WIN32
-			closesocket(http_client);
-			closesocket(http_server);
+			if(http_client > 0) {
+				closesocket(http_client);
+			}
+			if(http_server > 0) {
+				closesocket(http_server);
+			}
 #else
-			close(http_client);
-			close(http_server);
+			if(http_client > 0) {
+				close(http_client);
+			}
+			if(http_server > 0) {
+				close(http_server);
+			}
 #endif
 			http_client = 0;
 			http_server = 0;
@@ -365,13 +446,21 @@ static void http_wait(void *param) {
 					r = recv(http_client, message, BUFSIZE, 0);
 				}
 				CuAssertTrue(gtc, r >= 0);
-				CuAssertStrEquals(gtc, message, tests[testnr].recvmsg);
-				dowrite = 1;
+				if(tests[testnr].recvmsg != NULL) {
+					CuAssertStrEquals(gtc, message, tests[testnr].recvmsg);
+				}
+				if(tests[testnr].sendmsg != NULL) {
+					dowrite = 1;
+				}
 			}
 			if(FD_ISSET(http_client, &fdswrite)) {
 				FD_ZERO(&fdswrite);
 				if(tests[testnr].sprintf == 1) {
-					len = sprintf(message, tests[testnr].sendmsg, tests[testnr].size, tests[testnr].type, tests[testnr].data);
+					if(strstr(tests[testnr].sendmsg, "Content-Length") == NULL && strstr(tests[testnr].sendmsg, "Content-length") == NULL) {
+						len = sprintf(message, tests[testnr].sendmsg, tests[testnr].type, tests[testnr].data);
+					} else {
+						len = sprintf(message, tests[testnr].sendmsg, tests[testnr].size, tests[testnr].type, tests[testnr].data);
+					}
 				} else {
 					strcpy(message, tests[testnr].sendmsg);
 					len = strlen(message);
@@ -402,10 +491,14 @@ clear:
 	return;
 }
 
-static void http_start(int port) {
-	struct sockaddr_in addr;
-	int opt = 1;
+static void http_start(char *url, int port) {
+	struct sockaddr_in addr4;
+	struct sockaddr_in6 addr6;
 	int r = 0;
+	int opt = 1;
+	int type = 0;
+	int len = 0;
+	char *ip = NULL;
 
 #ifdef _WIN32
 	WSADATA wsa;
@@ -416,20 +509,88 @@ static void http_start(int port) {
 	}
 #endif
 
-	http_server = socket(AF_INET, SOCK_STREAM, 0);
+	/*
+	 * Remove http:// or https://
+	 */
+	char *cpy = STRDUP(url);
+	CuAssertPtrNotNull(gtc, cpy);
+	str_replace("https://", "", &cpy);
+	str_replace("http://", "", &cpy);
+
+	/*
+	 * Remove backslash after host and port
+	 */
+	int pos = rstrstr(cpy, "/")-cpy;
+	cpy[pos] = '\0';
+
+	/*
+	 * Remove port
+	 */
+	if(rstrstr(cpy, ":") != NULL) {
+		pos = rstrstr(cpy, ":")-cpy;
+		cpy[pos] = '\0';
+	}
+
+	/*
+	 * Remove auth
+	 */
+	if(rstrstr(cpy, "@") != NULL) {
+		pos = (strstr(cpy, "@")-cpy)+1;
+		len = strlen(cpy)-pos;
+		memmove(&cpy[0], &cpy[pos], len);
+		cpy[len] = '\0';
+	}
+
+	/*
+	 * Remove hooks
+	 */
+	len = strlen(cpy)-1;
+	if(cpy[0] == '[') {
+		memmove(&cpy[0], &cpy[1], len);
+		cpy[len] = '\0';
+	}
+	if(cpy[len-1] == ']') {
+		cpy[len-1] = '\0';
+	}
+
+	type = host2ip(cpy, &ip);
+	CuAssertTrue(gtc, type == AF_INET || type == AF_INET6);
+	FREE(cpy);
+
+	http_server = socket(type, SOCK_STREAM, 0);
 	CuAssertTrue(gtc, http_server >= 0);
 
-	memset((char *)&addr, '\0', sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	addr.sin_port = htons(port);
+	switch(type) {
+		case AF_INET: {
+			memset((char *)&addr4, '\0', sizeof(addr4));
+			addr4.sin_family = type;
+			addr4.sin_addr.s_addr = htonl(INADDR_ANY);
+			addr4.sin_port = htons(port);
+		} break;
+		case AF_INET6: {
+			memset((char *)&addr6, '\0', sizeof(addr6));
+			addr6.sin6_family = type;
+			addr6.sin6_flowinfo = 0;
+			addr6.sin6_port = htons(port);
+			addr6.sin6_addr = in6addr_loopback;
+		} break;
+		default: {
+		} break;
+	}
+	FREE(ip);
 
 	r = setsockopt(http_server, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
 	CuAssertTrue(gtc, r >= 0);
 
-	r = bind(http_server, (struct sockaddr *)&addr, sizeof(addr));
+	switch(type) {
+		case AF_INET: {
+			r = bind(http_server, (struct sockaddr *)&addr4, sizeof(addr4));
+		} break;
+		case AF_INET6: {
+			r = bind(http_server, (struct sockaddr *)&addr6, sizeof(addr6));
+		} break;
+	}
 	CuAssertTrue(gtc, r >= 0);
-
 	r = listen(http_server, 0);
 	CuAssertTrue(gtc, r >= 0);
 }
@@ -443,16 +604,16 @@ static void test(void *param) {
 	is_ssl = 0;
 	doquit = 0;
 
-	if(testnr != 10) {
-		http_start(tests[testnr].port);
+	if(testnr != 16) {
+		http_start(tests[testnr].url, tests[testnr].port);
 		uv_thread_create(&pth, http_wait, NULL);
 	}
 
 	if(tests[testnr].getpost == GET) {
-		http_get_content(tests[testnr].url, callback, NULL);
+		http_get_content(tests[testnr].url, callback, _userdata);
 	}
 	if(tests[testnr].getpost == POST) {
-		http_post_content(tests[testnr].url, tests[testnr].type, tests[testnr].post, callback, NULL);
+		http_post_content(tests[testnr].url, tests[testnr].type, tests[testnr].post, callback, _userdata);
 	}
 
 	started = 1;
@@ -469,6 +630,9 @@ static void test_http(CuTest *tc) {
 	testnr = 0;
 
 	gtc = tc;
+
+	_userdata = MALLOC(0);
+	CuAssertPtrNotNull(tc, _userdata);
 
 	uv_replace_allocator(_MALLOC, _REALLOC, _CALLOC, _FREE);
 
@@ -494,7 +658,9 @@ static void test_http(CuTest *tc) {
 	storage_gc();
 	eventpool_gc();
 
-	CuAssertIntEquals(tc, 11, testnr);
+	FREE(_userdata);
+
+	CuAssertIntEquals(tc, 17, testnr);
 	CuAssertIntEquals(tc, 0, xfree());
 
 }
@@ -509,6 +675,9 @@ static void test_http_threaded(CuTest *tc) {
 
 	gtc = tc;
 	testnr = 0;
+
+	_userdata = MALLOC(0);
+	CuAssertPtrNotNull(tc, _userdata);
 
 	uv_replace_allocator(_MALLOC, _REALLOC, _CALLOC, _FREE);
 
@@ -550,7 +719,8 @@ static void test_http_threaded(CuTest *tc) {
 	storage_gc();
 	eventpool_gc();
 
-	CuAssertIntEquals(tc, 11, testnr);
+	FREE(_userdata);
+	CuAssertIntEquals(tc, 17, testnr);
 	CuAssertIntEquals(tc, 0, xfree());
 }
 

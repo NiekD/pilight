@@ -7,11 +7,19 @@
 local M = {}
 
 function M.run(a, b)
-	if pilight.tonumber(a) == 0 or pilight.tonumber(b) == 0 then
-		return "0.000000";
+	if pilight.cast.tonumber(a) == 0 or pilight.cast.tonumber(b) == 0 then
+		return 0;
 	else
-		return string.format("%.6f", (pilight.tonumber(a) / pilight.tonumber(b)));
+		return (pilight.cast.tonumber(a) / pilight.cast.tonumber(b));
 	end
+end
+
+function M.associativity()
+	return 70;
+end
+
+function M.precedence()
+	return 1;
 end
 
 function M.info()

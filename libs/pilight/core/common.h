@@ -22,6 +22,7 @@ typedef struct varcont_t {
 		char *string_;
 		double number_;
 		int bool_;
+		void *void_;
 	};
 	int decimals_;
 	int type_;
@@ -83,6 +84,7 @@ int vercmp(char *val, char *ref);
 int str_replace(char *search, char *replace, char **str);
 #ifndef _WIN32
 int stricmp(char const *a, char const *b);
+int strnicmp(char const *a, char const *b, size_t len);
 #endif
 int file_get_contents(char *file, char **content);
 void calc_time_interval(int type, int seconds, int diff, struct timeval *tv);

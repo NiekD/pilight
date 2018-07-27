@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 2.8.12.2)
 
 include(CMakeConfig.txt)
 
@@ -12,6 +12,7 @@ if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE DEBUG)
 endif()
 
+set (CMAKE_C_STANDARD 90)
 set(CMAKE_SKIP_RULE_DEPENDENCY TRUE)
 set(CPACK_DEB_COMPONENT_INSTALL TRUE)
 
@@ -281,7 +282,7 @@ else()
 endif()
 
 find_library(CMAKE_LUA_LIBS_INIT
-NAME lua lua5 lua5.1 lua5.2 lua5.3
+NAME luajit-5.1
 PATHS
 	${CROSS_COMPILE_LIBS}
 	/usr/lib
@@ -298,25 +299,13 @@ PATHS
 NO_DEFAULT_PATH)
 
 if(${CMAKE_LUA_LIBS_INIT} MATCHES "CMAKE_LUA_LIBS_INIT-NOTFOUND")
-	message(FATAL_ERROR "Looking for liblua - not found")
+	message(FATAL_ERROR "Looking for libluajit - not found")
 else()
-	if(${CMAKE_LUA_LIBS_INIT} MATCHES ".*5.1.*")
-		set(CMAKE_LUA_LIBS_VERSION "5.1")
-	elseif(${CMAKE_LUA_LIBS_INIT} MATCHES ".*5.2.*")
-		set(CMAKE_LUA_LIBS_VERSION "5.2")
-	elseif(${CMAKE_LUA_LIBS_INIT} MATCHES ".*5.3.*")
-		set(CMAKE_LUA_LIBS_VERSION "5.3")
-	elseif(${CMAKE_LUA_LIBS_INIT} MATCHES ".*5.*")
-		set(CMAKE_LUA_LIBS_VERSION "5")
-	endif()
-	find_path(CMAKE_LUA_INCLUDE_DIR "lua${CMAKE_LUA_LIBS_VERSION}/lua.h")
-	message(STATUS "Looking for liblua - found (${CMAKE_LUA_LIBS_INIT})")
+	message(STATUS "Looking for libluajit - found (${CMAKE_LUA_LIBS_INIT})")
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR}/inc)
 include_directories(${PROJECT_SOURCE_DIR}/libs/libuv)
-include_directories(/usr/local/include/)
-include_directories("${CMAKE_LUA_INCLUDE_DIR}/lua${CMAKE_LUA_LIBS_VERSION}/")
 
 add_subdirectory(inc)
 add_subdirectory(libs)

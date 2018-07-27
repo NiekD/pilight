@@ -13,6 +13,7 @@
 #include "../core/pilight.h"
 #include "../core/common.h"
 #include "../core/eventpool_structs.h"
+#include "../datatypes/stack.h"
 #include "../hardware/hardware.h"
 #include "../events/action.h"
 
@@ -54,15 +55,14 @@ typedef struct rules_values_t {
 	struct rules_values_t *next;
 } rules_values_t;
 
-struct rules_actions_t {
-	int nr;
+typedef struct rules_actions_t {
+	void *ptr;
 	struct rules_t *rule;
 	struct JsonNode *arguments;
-	struct JsonNode *parsedargs;
 	struct event_actions_t *action;
 
 	struct rules_actions_t *next;
-};
+} rules_actions_t;
 
 typedef struct rules_t {
 	char *rule;
@@ -76,11 +76,21 @@ typedef struct rules_t {
 		struct timespec second;
 	}	timestamp;
 	unsigned short active;
+
+	struct {
+		struct stack_dt *lexemes;
+	} condition;
+
+	struct {
+		struct stack_dt *lexemes;
+	} action;
+
 	/* Values from received protocols */
 	struct JsonNode *jtrigger;
 	/* Arguments to be send to the action */
 	struct rules_actions_t *actions;
 	struct rules_values_t *values;
+	struct tree_t *tree;
 	struct rules_t *next;
 } rules_t;
 
@@ -95,6 +105,10 @@ struct device_t {
 #endif
 	struct protocol_t **protocols;
 	int nrprotocols;
+
+	char **protocols1;
+	int nrprotocols1;
+
 	struct device_t *next;
 };
 
@@ -168,4 +182,15 @@ int registry_select_string(enum origin_t, char *, char **);
 int registry_update(enum origin_t origin, const char *key, struct JsonNode *jvalues);
 int registry_delete(enum origin_t origin, const char *key);
 
+/*
+ *
+ */
+
+int devices_get_type(enum origin_t, char *, int, int *);
+int devices_get_state(enum origin_t, char *, int, char **);
+int devices_get_value(enum origin_t, char *, int, char *, char **);
+int devices_get_string_setting(enum origin_t, char *, int, char *, char **);
+int devices_get_number_setting(enum origin_t, char *, int, char *, int *);
+int devices_is_state(enum origin_t, char *, int, char *);
+int devices_has_parameter(enum origin_t, char *, int, char *);
 #endif

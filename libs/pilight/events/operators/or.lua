@@ -7,11 +7,19 @@
 local M = {}
 
 function M.run(a, b)
-	if pilight.toboolean(a) == true or pilight.toboolean(b) == true then
-		return "1";
+	if pilight.cast.toboolean(a) == true or pilight.cast.toboolean(b) == true then
+		return true;
 	else
-		return "0";
+		return false;
 	end
+end
+
+function M.associativity()
+	return 10;
+end
+
+function M.precedence()
+	return 1;
 end
 
 function M.info()

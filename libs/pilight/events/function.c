@@ -17,6 +17,7 @@
 #include <sys/time.h>
 #include <libgen.h>
 #include <dirent.h>
+#include <assert.h>
 #ifndef _WIN32
 	#include <dlfcn.h>
 #endif
@@ -71,10 +72,10 @@ void event_function_init(void) {
 	FREE(f);
 }
 
-static int plua_function_module_run(struct lua_State *L, char *file, struct event_function_args_t *args, char **out) {
+static int plua_function_module_run(struct lua_State *L, char *file, struct event_function_args_t *args, struct varcont_t *v) {
 #if LUA_VERSION_NUM <= 502
 	lua_getfield(L, -1, "run");
-	if(strcmp(lua_typename(L, lua_type(L, -1)), "function") != 0) {
+	if(lua_type(L, -1) != LUA_TFUNCTION) {
 #else
 	if(lua_getfield(L, -1, "run") == 0) {
 #endif
@@ -113,25 +114,40 @@ static int plua_function_module_run(struct lua_State *L, char *file, struct even
 	args = NULL;
 
 	if(lua_pcall(L, nrargs, 1, 0) == LUA_ERRRUN) {
-		if(strcmp(lua_typename(L, lua_type(L, -1)), "nil") == 0) {
+		if(lua_type(L, -1) == LUA_TNIL) {
 			logprintf(LOG_ERR, "%s: syntax error", file);
 			return 0;
 		}
-		if(strcmp(lua_typename(L, lua_type(L, -1)), "string") == 0) {
+		if(lua_type(L, -1) == LUA_TSTRING) {
 			logprintf(LOG_ERR, "%s", lua_tostring(L,  -1));
 			lua_pop(L, 1);
 			return 0;
 		}
 	}
 
-	if(lua_isstring(L, -1) == 0) {
-		logprintf(LOG_ERR, "%s: the run function returned %s, string expected", file, lua_typename(L, lua_type(L, -1)));
+	if(lua_isstring(L, -1) == 0 &&
+		lua_isnumber(L, -1) == 0 &&
+		lua_isboolean(L, -1) == 0) {
+		logprintf(LOG_ERR, "%s: the run function returned %s, string, number or boolean expected", file, lua_typename(L, lua_type(L, -1)));
 		return 0;
 	}
 
-	char *p = (char *)lua_tostring(L, -1);
-	if((*out = STRDUP(p)) == NULL) {
-		OUT_OF_MEMORY
+	if(lua_isnumber(L, -1) == 1) {
+		char *p = (char *)lua_tostring(L, -1);
+		v->number_ = atof(p);
+		v->decimals_ = nrDecimals(p);
+		v->type_ = JSON_NUMBER;
+	} else if(lua_isstring(L, -1) == 1) {
+		int l = strlen(lua_tostring(L, -1));
+		if((v->string_ = REALLOC(v->string_, l+1)) == NULL) {
+			OUT_OF_MEMORY
+		}
+		strcpy(v->string_, lua_tostring(L, -1));
+		v->type_ = JSON_STRING;
+		v->free_ = 1;
+	} else if(lua_isboolean(L, -1) == 1) {
+		v->bool_ = (int)lua_toboolean(L, -1);
+		v->type_ = JSON_BOOL;
 	}
 
 	lua_pop(L, 1);
@@ -194,8 +210,18 @@ void event_function_free_argument(struct event_function_args_t *args) {
 	}
 }
 
-int event_function_callback(char *module, struct event_function_args_t *args, char **out) {
-	struct lua_State *L = plua_get_state();
+int event_function_callback(char *module, struct event_function_args_t *args, struct varcont_t *v) {
+	struct lua_state_t *state = plua_get_free_state();
+	struct lua_State *L = NULL;
+
+	if(state == NULL) {
+		return -1;
+	}
+	if((L = state->L) == NULL) {
+		assert(lua_gettop(L) == 0);
+		uv_mutex_unlock(&state->lock);
+		return -1;
+	}
 
 	char name[255], *p = name;
 	memset(name, '\0', 255);
@@ -205,6 +231,9 @@ int event_function_callback(char *module, struct event_function_args_t *args, ch
 	lua_getglobal(L, name);
 	if(lua_isnil(L, -1) != 0) {
 		event_function_free_argument(args);
+		lua_remove(L, -1);
+		assert(lua_gettop(L) == 0);
+		uv_mutex_unlock(&state->lock);
 		return -1;
 	}
 	if(lua_istable(L, -1) != 0) {
@@ -213,21 +242,29 @@ int event_function_callback(char *module, struct event_function_args_t *args, ch
 		while(tmp) {
 			if(strcmp(module, tmp->name) == 0) {
 				file = tmp->file;
+				state->module = tmp;
 				break;
 			}
 			tmp = tmp->next;
 		}
 		if(file != NULL) {
-			if(plua_function_module_run(L, file, args, out) == 0) {
+			if(plua_function_module_run(L, file, args, v) == 0) {
 				lua_pop(L, -1);
+				assert(lua_gettop(L) == 0);
+				uv_mutex_unlock(&state->lock);
 				return -1;
 			}
 		} else {
 			event_function_free_argument(args);
+			assert(lua_gettop(L) == 0);
+			uv_mutex_unlock(&state->lock);
 			return -1;
 		}
 	}
 	lua_pop(L, -1);
+
+	assert(lua_gettop(L) == 0);
+	uv_mutex_unlock(&state->lock);
 
 	return 0;
 }

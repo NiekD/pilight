@@ -36,6 +36,7 @@
 #include "../core/log.h"
 #include "../events/events.h"
 #include "../events/action.h"
+#include "../datatypes/stack.h"
 #include "storage.h"
 
 #include "json.h"
@@ -490,7 +491,9 @@ void devices_struct_parse(struct JsonNode *jdevices, int i) {
 	node->timestamp = 0;
 	node->nrthreads = 0;
 	node->nrprotocols = 0;
+	node->nrprotocols1 = 0;
 	node->protocols = NULL;
+	node->protocols1 = NULL;
 #ifdef EVENTS
 	node->action_thread = NULL;
 #endif
@@ -509,6 +512,14 @@ void devices_struct_parse(struct JsonNode *jdevices, int i) {
 					}
 					node->protocols[node->nrprotocols] = protocol;
 					node->nrprotocols++;
+
+					if((node->protocols1 = REALLOC(node->protocols1, (sizeof(char *)*(size_t)(node->nrprotocols1+1)))) == NULL) {
+						OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+					}
+					if((node->protocols1[node->nrprotocols1] = STRDUP(jchilds->string_)) == NULL) {
+						OUT_OF_MEMORY
+					}
+					node->nrprotocols1++;
 				}
 				tmp_protocols = tmp_protocols->next;
 			}
@@ -1137,13 +1148,7 @@ int rules_struct_parse(struct JsonNode *jrules, int i) {
 	if(node == NULL) {
 		OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
 	}
-	node->next = NULL;
-	node->values = NULL;
-	node->nrdevices = 0;
-	node->status = 0;
-	node->devices = NULL;
-	node->actions = NULL;
-	node->jtrigger = NULL;
+	memset(node, 0, sizeof(struct rules_t));
 	node->nr = i;
 	if((node->name = MALLOC(strlen(jrules->key)+1)) == NULL) {
 		OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
@@ -2340,8 +2345,12 @@ int devices_select_struct(enum origin_t origin, char *id, struct device_t **dev)
 
 int devices_select_string_setting(enum origin_t origin, char *id, char *setting, char **out) {
 	struct JsonNode *tmp = NULL;
+	char *_out = NULL;
 	if(devices_select(origin, id, &tmp) == 0) {
-		if(json_find_string(tmp, setting, out) == 0) {
+		if(json_find_string(tmp, setting, &_out) == 0) {
+			if(out != NULL) {
+				*out = _out;
+			}
 			return 0;
 		}
 	}
@@ -2353,9 +2362,11 @@ int devices_select_number_setting(enum origin_t origin, char *id, char *setting,
 	struct JsonNode *tmp1 = NULL;
 	if(devices_select(origin, id, &tmp) == 0) {
 		if((tmp1 = json_find_member(tmp, setting)) != NULL) {
-			*out = tmp1->number_;
-			if(decimals != NULL) {
-				*decimals = tmp1->decimals_;
+			if(out != NULL && decimals != NULL) {
+				*out = tmp1->number_;
+				if(decimals != NULL) {
+					*decimals = tmp1->decimals_;
+				}
 			}
 			return 0;
 		}
@@ -2367,6 +2378,9 @@ int devices_select_settings(enum origin_t origin, char *id, int i, char **settin
 	struct JsonNode *tmp = NULL;
 	struct JsonNode *tmp1 = NULL;
 	struct protocol_t *protocol = NULL;
+	/*
+	 * FIXME: Only valid in local scope
+	 */
 	char *state = "state";
 	int x = 0;
 	int y = 0;
@@ -2586,6 +2600,9 @@ int hardware_select_struct(enum origin_t origin, char *id, struct hardware_t **o
 }
 
 int settings_select(enum origin_t origin, char *id, struct JsonNode **jrespond) {
+	if(jsettings_cache == NULL) {
+		return -1;
+	}
 	*jrespond = jsettings_cache;
 	if(id != NULL) {
 		struct JsonNode *jchilds = json_first_child(*jrespond);
@@ -2689,6 +2706,9 @@ static int registry_get_value_recursive(struct JsonNode *root, const char *key, 
 }
 
 int registry_select(enum origin_t origin, char *id, struct JsonNode **jrespond) {
+	if(jregistry_cache == NULL) {
+		return -1;
+	}
 	*jrespond = jregistry_cache;
 	if(id != NULL) {
 		struct JsonNode *jchilds = json_first_child(*jrespond);
@@ -2864,6 +2884,7 @@ int rules_gc(void) {
 		tmp_rules = rules;
 		FREE(tmp_rules->name);
 		FREE(tmp_rules->rule);
+		events_tree_gc(tmp_rules->tree);
 		for(i=0;i<tmp_rules->nrdevices;i++) {
 			FREE(tmp_rules->devices[i]);
 		}
@@ -2881,9 +2902,6 @@ int rules_gc(void) {
 			tmp_actions = tmp_rules->actions;
 			if(tmp_actions->arguments != NULL) {
 				json_delete(tmp_actions->arguments);
-			}
-			if(tmp_actions->parsedargs != NULL) {
-				json_delete(tmp_actions->parsedargs);
 			}
 			tmp_rules->actions = tmp_rules->actions->next;
 			if(tmp_actions != NULL) {
@@ -2911,6 +2929,7 @@ int rules_gc(void) {
 
 int devices_gc(void) {
 	struct device_t *tmp_device = NULL;
+	int i = 0;
 
 	while(device) {
 		tmp_device = device;
@@ -2921,6 +2940,12 @@ int devices_gc(void) {
 		}
 		if(tmp_device->protocols != NULL) {
 			FREE(tmp_device->protocols);
+		}
+		for(i=0;i<tmp_device->nrprotocols1;i++) {
+			FREE(tmp_device->protocols1[i]);
+		}
+		if(tmp_device->protocols1 != NULL) {
+			FREE(tmp_device->protocols1);
 		}
 		device = device->next;
 		FREE(tmp_device);
@@ -3201,4 +3226,112 @@ struct JsonNode *values_print(const char *media) {
 		}
 	}
 	return jroot;
+}
+
+/*
+ *
+ */
+int devices_get_type(enum origin_t origin, char *id, int element, int *out) {
+	struct device_t *nodes = device;
+	while(nodes) {
+		if(strcmp(id, nodes->id) == 0) {
+			if(nodes->nrprotocols1 > element) {
+				if(protocol_get_type(nodes->protocols1[element], out) == 0) {
+					return 0;
+				}
+			}
+		}
+		nodes = nodes->next;
+	}
+	return -1;
+}
+
+int devices_get_state(enum origin_t origin, char *id, int element, char **out) {
+	struct device_t *nodes = device;
+	while(nodes) {
+		if(strcmp(id, nodes->id) == 0) {
+			if(nodes->nrprotocols1 > element) {
+				if(protocol_get_state(nodes->protocols1[element], out) == 0) {
+					return 0;
+				}
+			}
+		}
+		nodes = nodes->next;
+	}
+	return -1;
+}
+
+int devices_is_state(enum origin_t origin, char *id, int element, char *in) {
+	struct device_t *nodes = device;
+	while(nodes) {
+		if(strcmp(id, nodes->id) == 0) {
+			if(nodes->nrprotocols1 > element) {
+				if(protocol_is_state(nodes->protocols1[element], in) == 0) {
+					return 0;
+				}
+			}
+		}
+		nodes = nodes->next;
+	}
+	return -1;
+}
+
+int devices_get_value(enum origin_t origin, char *id, int element, char *in, char **out) {
+	struct device_t *nodes = device;
+	while(nodes) {
+		if(strcmp(id, nodes->id) == 0) {
+			if(nodes->nrprotocols1 > element) {
+				if(protocol_get_value(nodes->protocols1[element], in, out) == 0) {
+					return 0;
+				}
+			}
+		}
+		nodes = nodes->next;
+	}
+	return -1;
+}
+
+int devices_get_string_setting(enum origin_t origin, char *id, int element, char *in, char **out) {
+	struct device_t *nodes = device;
+	while(nodes) {
+		if(strcmp(id, nodes->id) == 0) {
+			if(nodes->nrprotocols1 > element) {
+				if(protocol_get_string_setting(nodes->protocols1[element], in, out) == 0) {
+					return 0;
+				}
+			}
+		}
+		nodes = nodes->next;
+	}
+	return -1;
+}
+
+int devices_get_number_setting(enum origin_t origin, char *id, int element, char *in, int *out) {
+	struct device_t *nodes = device;
+	while(nodes) {
+		if(strcmp(id, nodes->id) == 0) {
+			if(nodes->nrprotocols1 > element) {
+				if(protocol_get_number_setting(nodes->protocols1[element], in, out) == 0) {
+					return 0;
+				}
+			}
+		}
+		nodes = nodes->next;
+	}
+	return -1;
+}
+
+int devices_has_parameter(enum origin_t origin, char *id, int element, char *in) {
+	struct device_t *nodes = device;
+	while(nodes) {
+		if(strcmp(id, nodes->id) == 0) {
+			if(nodes->nrprotocols1 > element) {
+				if(protocol_has_parameter(nodes->protocols1[element], in) == 0) {
+					return 0;
+				}
+			}
+		}
+		nodes = nodes->next;
+	}
+	return -1;
 }

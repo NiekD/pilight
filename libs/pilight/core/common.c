@@ -234,11 +234,11 @@ int isrunning(const char *program) {
 		return -1;
 	}
 	int i = 0;
-	char name[255], *p = name;
-	memset(&name, '\0', 255);
+	char name[1024], *p = name;
+	memset(&name, '\0', sizeof(name));
 
 	for(i=0;i<psutil_max_pid();i++) {
-		if(psutil_proc_name(i, &p) == 0) {
+		if(psutil_proc_name(i, &p, sizeof(name)) == 0) {
 			if(strcmp(name, program) == 0) {
 				return i;
 			}
@@ -816,8 +816,29 @@ int str_replace(char *search, char *replace, char **str) {
 	}
 }
 
+int strnicmp(char const *a, char const *b, size_t len) {
+	int i = 0;
+
+	if(a == NULL || b == NULL) {
+		return -1;
+	}
+	if(len == 0) {
+		return 0;
+	}
+
+	for(;i++<len; a++, b++) {
+		int d = tolower(*a) - tolower(*b);
+		if(d != 0 || !*a || i == len) {
+			return d;
+		}
+	}
+	return -1;
+}
+
 int stricmp(char const *a, char const *b) {
-	assert(a != NULL && b != NULL);
+	if(a == NULL || b == NULL) {
+		return -1;
+	}
 
 	for(;; a++, b++) {
 		int d = tolower(*a) - tolower(*b);
