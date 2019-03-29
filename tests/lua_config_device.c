@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2013 - 2016 CurlyMo
+	Copyright (C) 2013 - 2019 CurlyMo
 
   This Source Code Form is subject to the terms of the Mozilla Public
   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -577,7 +577,7 @@ static void test_lua_config_device_label(CuTest *tc) {
 
 	uv_replace_allocator(_MALLOC, _REALLOC, _CALLOC, _FREE);
 
-	char config[1024] = "{\"devices\":{\"label\":{\"protocol\":[\"generic_label\"],\"id\":[{\"id\":100},{\"id\":200}],\"label\":\"foo bar\",\"color\":\"pink\"}}," \
+	char config[1024] = "{\"devices\":{\"label\":{\"protocol\":[\"generic_label\"],\"id\":[{\"id\":100},{\"id\":200}],\"label\":\"foo bar\",\"color\":\"pink\",\"bgcolor\":\"purple\",\"blink\":\"off\"}}," \
 		"\"gui\":{},\"rules\":{},\"settings\":{},\"hardware\":{},\"registry\":{}}";
 	char *file = STRDUP(__FILE__);
 	if(file == NULL) {
@@ -631,6 +631,16 @@ static void test_lua_config_device_label(CuTest *tc) {
 	lua_return[i].var.string_ = STRDUP("pink");
 	CuAssertPtrNotNull(tc, lua_return[i++].var.string_);
 
+	/* print(dev:getBgcolor()); */
+	lua_return[i].type = LUA_TSTRING;
+	lua_return[i].var.string_ = STRDUP("purple");
+	CuAssertPtrNotNull(tc, lua_return[i++].var.string_);
+
+	/* print(dev:getBlink()); */
+	lua_return[i].type = LUA_TSTRING;
+	lua_return[i].var.string_ = STRDUP("off");
+	CuAssertPtrNotNull(tc, lua_return[i++].var.string_);
+
 	/* print(dev:getLabel()); */
 	lua_return[i].type = LUA_TSTRING;
 	lua_return[i].var.string_ = STRDUP("foo bar");
@@ -660,6 +670,14 @@ static void test_lua_config_device_label(CuTest *tc) {
 	lua_return[i].type = LUA_TBOOLEAN;
 	lua_return[i++].var.number_ = 1;
 
+	/* print(dev:hasSetting("bgcolor")); */
+	lua_return[i].type = LUA_TBOOLEAN;
+	lua_return[i++].var.number_ = 1;
+
+	/* print(dev:hasSetting("blink")); */
+	lua_return[i].type = LUA_TBOOLEAN;
+	lua_return[i++].var.number_ = 1;
+
 	/* print(dev:hasSetting("label")); */
 	lua_return[i].type = LUA_TBOOLEAN;
 	lua_return[i++].var.number_ = 1;
@@ -668,9 +686,26 @@ static void test_lua_config_device_label(CuTest *tc) {
 	lua_return[i].type = LUA_TBOOLEAN;
 	lua_return[i++].var.number_ = 1;
 
-	/* print(dev:setLabel(\"black\")); */
+	/* print(dev:setColor(\"black\")); */
 	lua_return[i].type = LUA_TBOOLEAN;
 	lua_return[i++].var.number_ = 1;
+
+	/* print(dev:setBgcolor(\"white\")); */
+	lua_return[i].type = LUA_TBOOLEAN;
+	lua_return[i++].var.number_ = 1;
+
+	/* print(dev:setBlink(\"on\")); */
+	lua_return[i].type = LUA_TBOOLEAN;
+	lua_return[i++].var.number_ = 1;
+
+	/* print(dev:setBlink(\"off\")); */
+	lua_return[i].type = LUA_TBOOLEAN;
+	lua_return[i++].var.number_ = 1;
+
+	/* print(dev:setBlink(\"up\")); */
+	lua_return[i].type = LUA_TBOOLEAN;
+	lua_return[i++].var.number_ = 0;
+
 
 	int ret = luaL_dostring(state->L, "\
 		local config = pilight.config(); \
@@ -679,6 +714,8 @@ static void test_lua_config_device_label(CuTest *tc) {
 		print(dev.getType()[1]);\
 		print(dev.getName());\
 		print(dev.getColor());\
+		print(dev.getBgcolor());\
+		print(dev.getBlink());\
 		print(dev.getLabel());\
 		print(#dev.getId());\
 		print(dev.getId()[1]['id']);\
@@ -686,9 +723,15 @@ static void test_lua_config_device_label(CuTest *tc) {
 		print(dev.hasSetting(\"state\"));\
 		print(dev.hasSetting(\"dimlevel\"));\
 		print(dev.hasSetting(\"color\"));\
+		print(dev.hasSetting(\"bgcolor\"));\
+		print(dev.hasSetting(\"blink\"));\
 		print(dev.hasSetting(\"label\"));\
-		print(dev.setColor(\"bar foo\"));\
+		print(dev.setLabel(\"bar foo\"));\
 		print(dev.setColor(\"black\"));\
+		print(dev.setBgolor(\"white\"));\
+		print(dev.setBlink(\"on\"));\
+		print(dev.setBlink(\"off\"));\
+		print(dev.setBlink(\"up\"));\
 	");
 	CuAssertIntEquals(tc, 0, ret);
 

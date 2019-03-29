@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2013 - 2016 CurlyMo
+	Copyright (C) 2013 - 2019 CurlyMo
 
   This Source Code Form is subject to the terms of the Mozilla Public
   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -94,6 +94,12 @@ static void test_event_actions_label_get_parameters(CuTest *tc) {
 		if(stricmp(ret[i], "COLOR") == 0) {
 			check |= 1 << i;
 		}
+		if(stricmp(ret[i], "BGCOLOR") == 0) {
+			check |= 1 << i;
+		}
+		if(stricmp(ret[i], "BLINK") == 0) {
+			check |= 1 << i;
+		}
 		FREE(ret[i]);
 	}
 	FREE(ret);
@@ -148,10 +154,20 @@ static void test_event_actions_label_check_parameters(CuTest *tc) {
 		FREE(v.string_);
 
 		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("black"); v.type_ = JSON_STRING;
+		v.string_ = STRDUP("white"); v.type_ = JSON_STRING;
 		args = event_action_add_argument(args, "COLOR", &v);
 		FREE(v.string_);
 
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("black"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "BGCOLOR", &v);
+		FREE(v.string_);
+
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "BLINK", &v);
+		FREE(v.string_);
+		
 		memset(&v, 0, sizeof(struct varcont_t));
 		v.string_ = STRDUP("1 SECOND"); v.type_ = JSON_STRING;
 		args = event_action_add_argument(args, "FOR", &v);
@@ -174,36 +190,12 @@ static void test_event_actions_label_check_parameters(CuTest *tc) {
 
 	{
 		/*
-		 * Missing arguments
+		 * Missing DEVICE argument, all other arguments are optional, but at least one must be defined
 		 */
 		struct event_action_args_t *args = NULL;
-		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
 
 		memset(&v, 0, sizeof(struct varcont_t));
 		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "DEVICE", &v);
-		FREE(v.string_);
-
-		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
-	}
-
-	{
-		/*
-		 * Wrong order of arguments
-		 */
-		struct event_action_args_t *args = NULL;
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "DEVICE", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("1 SECOND"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "FOR", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
 		args = event_action_add_argument(args, "TO", &v);
 		FREE(v.string_);
 
@@ -212,127 +204,7 @@ static void test_event_actions_label_check_parameters(CuTest *tc) {
 
 	{
 		/*
-		 * Wrong order of arguments
-		 */
-		struct event_action_args_t *args = NULL;
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "DEVICE", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "TO", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("1 SECOND"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "FOR", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("black"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "COLOR", &v);
-		FREE(v.string_);
-
-		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
-	}
-
-	{
-		/*
-		 * Wrong order of arguments
-		 */
-		struct event_action_args_t *args = NULL;
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "DEVICE", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("1 SECOND"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "AFTER", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "TO", &v);
-		FREE(v.string_);
-
-		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
-	}
-
-	{
-		/*
-		 * Wrong order of arguments
-		 */
-		struct event_action_args_t *args = NULL;
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "DEVICE", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "TO", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("1 SECOND"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "AFTER", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("black"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "COLOR", &v);
-		FREE(v.string_);
-
-		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
-	}
-
-	{
-		/*
-		 * Wrong order of arguments
-		 */
-		struct event_action_args_t *args = NULL;
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "TO", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "DEVICE", &v);
-		FREE(v.string_);
-
-		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
-	}
-
-	{
-		/*
-		 * Wrong order of arguments
-		 */
-		struct event_action_args_t *args = NULL;
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "DEVICE", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("black"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "COLOR", &v);
-		FREE(v.string_);
-
-		memset(&v, 0, sizeof(struct varcont_t));
-		v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
-		args = event_action_add_argument(args, "TO", &v);
-		FREE(v.string_);
-
-		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
-	}
-
-	{
-		/*
-		 * Too many argument for a parameter
+		 * Too many arguments for TO parameter
 		 */
 		struct event_action_args_t *args = NULL;
 		memset(&v, 0, sizeof(struct varcont_t));
@@ -355,6 +227,94 @@ static void test_event_actions_label_check_parameters(CuTest *tc) {
 
 	{
 		/*
+		 * Too many arguments for COLOR parameter
+		 */
+		struct event_action_args_t *args = NULL;
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "DEVICE", &v);
+		FREE(v.string_);
+
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("black"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "COLOR", &v);
+		FREE(v.string_);
+
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("white"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "COLOR", &v);
+		FREE(v.string_);
+
+		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
+	}
+
+	{
+		/*
+		 * Too many arguments for BGCOLOR parameter
+		 */
+		struct event_action_args_t *args = NULL;
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "DEVICE", &v);
+		FREE(v.string_);
+
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("black"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "BGCOLOR", &v);
+		FREE(v.string_);
+
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("white"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "BGCOLOR", &v);
+		FREE(v.string_);
+
+		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
+	}
+
+	{
+		/*
+		 * Too many arguments for BLINK parameter
+		 */
+		struct event_action_args_t *args = NULL;
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "DEVICE", &v);
+		FREE(v.string_);
+
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "BLINK", &v);
+		FREE(v.string_);
+
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("off"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "BLINK", &v);
+		FREE(v.string_);
+
+		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
+	}
+	
+	{
+		/*
+		 * Ivalid argument for BLINK parameter
+		 */
+		struct event_action_args_t *args = NULL;
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "DEVICE", &v);
+		FREE(v.string_);
+
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("up"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "BLINK", &v);
+		FREE(v.string_);
+
+		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
+	}
+	
+	{
+
+	/*
 		 * Negative FOR duration
 		 */
 		struct event_action_args_t *args = NULL;
@@ -549,7 +509,7 @@ static void test_event_actions_label_check_parameters(CuTest *tc) {
 
 	{
 		/*
-		 * State missing value parameter
+		 * Missing TO parameter value
 		 */
 		struct event_action_args_t *args = NULL;
 		memset(&v, 0, sizeof(struct varcont_t));
@@ -558,6 +518,51 @@ static void test_event_actions_label_check_parameters(CuTest *tc) {
 		FREE(v.string_);
 
 		args = event_action_add_argument(args, "TO", NULL);
+
+		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
+	}
+
+	{
+		/*
+		 * Missing COLOR parameter value
+		 */
+		struct event_action_args_t *args = NULL;
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "DEVICE", &v);
+		FREE(v.string_);
+
+		args = event_action_add_argument(args, "COLOR", NULL);
+
+		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
+	}
+
+	{
+		/*
+		 * Missing BGCOLOR parameter value
+		 */
+		struct event_action_args_t *args = NULL;
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "DEVICE", &v);
+		FREE(v.string_);
+
+		args = event_action_add_argument(args, "BGCOLOR", NULL);
+
+		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
+	}
+
+	{
+		/*
+		 * Missing BLINK parameter value
+		 */
+		struct event_action_args_t *args = NULL;
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "DEVICE", &v);
+		FREE(v.string_);
+
+		args = event_action_add_argument(args, "BLINK", NULL);
 
 		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
 	}
@@ -615,6 +620,23 @@ static void test_event_actions_label_check_parameters(CuTest *tc) {
 		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
 	}
 
+	{
+		/*
+		 * Blink value numeric
+		 */
+		struct event_action_args_t *args = NULL;
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.string_ = STRDUP("label"); v.type_ = JSON_STRING;
+		args = event_action_add_argument(args, "DEVICE", &v);
+
+		memset(&v, 0, sizeof(struct varcont_t));
+		v.number_ = 1; v.type_ = JSON_NUMBER; v.decimals_ = 0;
+		args = event_action_add_argument(args, "BLINK", &v);
+		FREE(v.string_);
+
+		CuAssertIntEquals(tc, -1, event_action_check_arguments("label", args));
+	}
+
 	uv_walk(uv_default_loop(), walk_cb, NULL);
 	uv_run(uv_default_loop(), UV_RUN_ONCE);
 
@@ -643,16 +665,16 @@ static void *control_device(int reason, void *param, void *userdata) {
 
 	steps++;
 	if(run == 0) {
-		CuAssertStrEquals(gtc, "{\"color\":\"red\",\"label\":\"foo\"}", values);
+		CuAssertStrEquals(gtc, "{\"color\":\"red\",\"bgcolor\":\"black\",\"blink\":\"on\",\"label\":\"foo\"}", values);
 		CuAssertTrue(gtc, strcmp(data->dev, "label") == 0 || strcmp(data->dev, "label1") == 0);
 	} else if(run == 1) {
 		if(steps == 1) {
-			CuAssertStrEquals(gtc, "{\"color\":\"red\",\"label\":\"foo\"}", values);
+			CuAssertStrEquals(gtc, "{\"color\":\"red\",\"bgcolor\":\"black\",\"blink\":\"on\",\"label\":\"foo\"}", values);
 		} else if(steps == 2) {
-			CuAssertStrEquals(gtc, "{\"color\":\"green\",\"label\":\"bar\"}", values);
+			CuAssertStrEquals(gtc, "{\"color\":\"green\",\"bgcolor\":\"black\",\"blink\":\"on\",\"label\":\"bar\"}", values);
 		}
 	} else if(run == 2) {
-		CuAssertStrEquals(gtc, "{\"color\":\"red\",\"label\":\"1010\"}", values);
+		CuAssertStrEquals(gtc, "{\"color\":\"red\",\"bgcolor\":\"white\",\"blink\":\"on\",\"label\":\"1010\"}", values);
 	}
 
 	if(steps == nrsteps) {
@@ -688,6 +710,16 @@ static struct event_action_args_t *initialize_vars(int num) {
 			args = event_action_add_argument(args, "COLOR", &v);
 			FREE(v.string_);
 
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("black"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "BGCOLOR", &v);
+			FREE(v.string_);
+
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "BLINK", &v);
+			FREE(v.string_);
+
 		} break;
 		case 2: {
 			memset(&v, 0, sizeof(struct varcont_t));
@@ -702,6 +734,16 @@ static struct event_action_args_t *initialize_vars(int num) {
 			memset(&v, 0, sizeof(struct varcont_t));
 			v.string_ = STRDUP("red"); v.type_ = JSON_STRING;
 			args = event_action_add_argument(args, "COLOR", &v);
+			FREE(v.string_);
+
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("white"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "BGCOLOR", &v);
+			FREE(v.string_);
+
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "BLINK", &v);
 			FREE(v.string_);
 
 		} break;
@@ -719,6 +761,16 @@ static struct event_action_args_t *initialize_vars(int num) {
 			memset(&v, 0, sizeof(struct varcont_t));
 			v.string_ = STRDUP("red"); v.type_ = JSON_STRING;
 			args = event_action_add_argument(args, "COLOR", &v);
+			FREE(v.string_);
+
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("black"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "BGCOLOR", &v);
+			FREE(v.string_);
+
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "BLINK", &v);
 			FREE(v.string_);
 
 			memset(&v, 0, sizeof(struct varcont_t));
@@ -748,6 +800,16 @@ static struct event_action_args_t *initialize_vars(int num) {
 			FREE(v.string_);
 
 			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("white"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "BGCOLOR", &v);
+			FREE(v.string_);
+
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "BLINK", &v);
+			FREE(v.string_);
+
+			memset(&v, 0, sizeof(struct varcont_t));
 			v.string_ = STRDUP("500 MILLISECOND"); v.type_ = JSON_STRING;
 			args = event_action_add_argument(args, "FOR", &v);
 			FREE(v.string_);
@@ -771,6 +833,16 @@ static struct event_action_args_t *initialize_vars(int num) {
 			memset(&v, 0, sizeof(struct varcont_t));
 			v.string_ = STRDUP("black"); v.type_ = JSON_STRING;
 			args = event_action_add_argument(args, "COLOR", &v);
+			FREE(v.string_);
+
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("white"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "BGCOLOR", &v);
+			FREE(v.string_);
+
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("on"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "BLINK", &v);
 			FREE(v.string_);
 
 			memset(&v, 0, sizeof(struct varcont_t));
@@ -1163,8 +1235,8 @@ CuSuite *suite_event_actions_label(void) {
 	CuSuite *suite = CuSuiteNew();
 
 	char config[1024] = "{\"devices\":{\"switch\":{\"protocol\":[\"generic_switch\"],\"id\":[{\"id\":100}],\"state\":\"off\"}," \
-		"\"label\":{\"protocol\":[\"generic_label\"],\"id\":[{\"id\":101}],\"label\":\"bar\",\"color\":\"green\"}," \
-		"\"label1\":{\"protocol\":[\"generic_label\"],\"id\":[{\"id\":102}],\"label\":\"bar\",\"color\":\"green\"}}," \
+		"\"label\":{\"protocol\":[\"generic_label\"],\"id\":[{\"id\":101}],\"label\":\"bar\",\"color\":\"green\",\"bgcolor\":\"black\",\"blink\":\"off\"}," \
+		"\"label1\":{\"protocol\":[\"generic_label\"],\"id\":[{\"id\":102}],\"label\":\"bar\",\"color\":\"green\",\"bgcolor\":\"black\",\"blink\":\"off\"}}," \
 		"\"gui\":{},\"rules\":{"\
 		"\"rule1\":{\"rule\":\"IF label.label == bar THEN label DEVICE 'label' TO bar\",\"active\":1}"\
 		"},\"settings\":{" \

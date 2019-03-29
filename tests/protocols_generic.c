@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2013 - 2016 CurlyMo
+	Copyright (C) 2013 - 2019 CurlyMo
 
   This Source Code Form is subject to the terms of the Mozilla Public
   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -101,10 +101,12 @@ static void test_protocols_generic_label(CuTest *tc) {
 	json_append_member(jcode, "id", json_mknumber(1, 0));
 	json_append_member(jcode, "label", json_mkstring("Foobar"));
 	json_append_member(jcode, "color", json_mkstring("#FFFFFF"));
+	json_append_member(jcode, "bgcolor", json_mkstring("#000000"));
+	json_append_member(jcode, "blink", json_mkstring("off"));
 
 	char *p = message;
 	CuAssertIntEquals(tc, 0, generic_label->createCode(jcode, &p));
-	CuAssertStrEquals(tc, "{\"id\":1,\"label\":\"Foobar\",\"color\":\"#FFFFFF\"}", message);
+	CuAssertStrEquals(tc, "{\"id\":1,\"label\":\"Foobar\",\"color\":\"#FFFFFF\",\"bgcolor\":\"#000000\",\"blink\":\"off\"}", message);
 
 	json_delete(jcode);
 
