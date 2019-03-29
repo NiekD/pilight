@@ -20,7 +20,7 @@
 #include "../libs/pilight/core/CuTest.h"
 #include "../libs/pilight/core/pilight.h"
 #include "../libs/pilight/core/eventpool.h"
-#include "../libs/pilight/lua/lua.h"
+#include "../libs/pilight/lua_c/lua.h"
 #include "../libs/pilight/protocols/protocol.h"
 #include "../libs/pilight/events/action.h"
 #include "../libs/pilight/protocols/generic/generic_switch.h"
@@ -57,10 +57,12 @@ static int steps = 0;
 static CuTest *gtc = NULL;
 static uv_timer_t *timer_req = NULL;
 
-static int plua_error(lua_State* L) {
-	CuAssertIntEquals(gtc, lua_type(L, -1), LUA_TSTRING);
-	CuAssertStrEquals(gtc, lua_tostring(L, -1), "pushbullet action succeeded with message \"{\"active\":true,\"iden\":\"zHHk5f59OL4veP7y1XX1\",\"created\":1531896331.5908997,\"modified\":1531896331.6010456,\"type\":\"note\",\"dismissed\":false,\"direction\":\"self\",\"sender_iden\":\"pilight\",\"sender_email\":info@pilight.org,\"sender_email_normalized\":\"info@pilight.org\",\"sender_name\":\"pilight\",\"receiver_iden\":\"pilight\",\"receiver_email\":\"info@pilight.org\",\"receiver_email_normalized\":\"info@pilight.org\",\"title\":\"test\",\"body\":\"this is a test\"}\"");
-	steps = 1;
+static int plua_error(lua_State *L) {
+	if(lua_type(L, -1) == LUA_TSTRING) {
+		if(strcmp(lua_tostring(L, -1), "pushbullet action succeeded with message \"{\"active\":true,\"iden\":\"zHHk5f59OL4veP7y1XX1\",\"created\":1531896331.5908997,\"modified\":1531896331.6010456,\"type\":\"note\",\"dismissed\":false,\"direction\":\"self\",\"sender_iden\":\"pilight\",\"sender_email\":info@pilight.org,\"sender_email_normalized\":\"info@pilight.org\",\"sender_name\":\"pilight\",\"receiver_iden\":\"pilight\",\"receiver_email\":\"info@pilight.org\",\"receiver_email_normalized\":\"info@pilight.org\",\"title\":\"test\",\"body\":\"this is a test\"}\"") == 0) {
+			steps = 1;
+		}
+	}
 	return 1;
 }
 
@@ -91,7 +93,8 @@ static void test_event_actions_pushbullet_get_parameters(CuTest *tc) {
 	uv_replace_allocator(_MALLOC, _REALLOC, _CALLOC, _FREE);
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_pushbullet.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_pushbullet.json", CONFIG_SETTINGS));
@@ -141,7 +144,9 @@ static void test_event_actions_pushbullet_check_parameters(CuTest *tc) {
 	genericLabelInit();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_pushbullet.c");
+
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_pushbullet.json", CONFIG_SETTINGS | CONFIG_DEVICES));
 	event_action_init();
@@ -391,8 +396,9 @@ static void test_event_actions_pushbullet_run(CuTest *tc) {
 	gtc = tc;
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
 	plua_override_global("error", plua_error);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_pushbullet.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_pushbullet.json", CONFIG_SETTINGS | CONFIG_DEVICES));

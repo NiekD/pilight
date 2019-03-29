@@ -177,7 +177,7 @@ static void start(void) {
 	uv_pipe_connect(connect_req, pipe_req, socket_path, connect_cb);
 }
 
-static void *addDevice(int reason, void *param) {
+static void *addDevice(int reason, void *param, void *userdata) {
 	struct JsonNode *jdevice = NULL;
 	struct JsonNode *jprotocols = NULL;
 	struct JsonNode *jchild = NULL;
@@ -238,10 +238,10 @@ void lircInit(void) {
 	lirc->devtype = LIRC;
 	lirc->hwtype = API;
 
-	options_add(&lirc->options, 'c', "code", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
-	options_add(&lirc->options, 'a', "repeat", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "[0-9]");
-	options_add(&lirc->options, 'b', "button", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
-	options_add(&lirc->options, 'r', "remote", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, NULL);
+	options_add(&lirc->options, "c", "code", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
+	options_add(&lirc->options, "a", "repeat", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "[0-9]");
+	options_add(&lirc->options, "b", "button", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
+	options_add(&lirc->options, "r", "remote", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, NULL);
 
 #ifndef _WIN32
 	lirc->gc=&gc;
@@ -258,7 +258,7 @@ void lircInit(void) {
 #else
 	strcpy(socket_path, "/dev/lircd");
 #endif
-	eventpool_callback(REASON_DEVICE_ADDED, addDevice);
+	eventpool_callback(REASON_DEVICE_ADDED, addDevice, NULL);
 #endif
 }
 

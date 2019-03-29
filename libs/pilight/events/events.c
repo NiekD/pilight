@@ -35,7 +35,7 @@
 #include "../core/socket.h"
 #include "../datatypes/stack.h"
 
-#include "../lua/lua.h"
+#include "../lua_c/lua.h"
 
 #include "../protocols/protocol.h"
 #include "../storage/storage.h"
@@ -324,7 +324,7 @@ void event_cache_device(struct rules_t *obj, char *device) {
  * 0: Found variable and filled varcont
  * 1: Did not find variable and did not fill varcont
  */
-int event_lookup_variable(char *var, struct rules_t *obj, struct varcont_t *varcont, unsigned short validate, enum origin_t origin) {
+static int event_lookup_variable(char *var, struct rules_t *obj, struct varcont_t *varcont, unsigned short validate, int in_action) {
 	int recvtype = 0;
 	// int cached = 0;
 	if(strcmp(true_, "1") != 0) {
@@ -394,7 +394,7 @@ int event_lookup_variable(char *var, struct rules_t *obj, struct varcont_t *varc
 
 		if(recvtype == 2) {
 			if(validate == 1) {
-				if(origin == ORIGIN_RULE) {
+				if(in_action == 0) {
 					event_cache_device(obj, device);
 				}
 				if(strcmp(name, "repeats") != 0 && strcmp(name, "uuid") != 0) {
@@ -457,7 +457,7 @@ int event_lookup_variable(char *var, struct rules_t *obj, struct varcont_t *varc
 			return 0;
 		} else if(recvtype == 1) {
 			if(validate == 1) {
-				if(origin == ORIGIN_RULE) {
+				if(in_action == 0) {
 					event_cache_device(obj, device);
 				}
 				char *tmp_state = NULL;
@@ -1007,7 +1007,7 @@ static int lexer_parse_function(struct lexer_t *lexer, struct tree_t *tree_in, s
 	struct token_t *token = lexer->current_token, *token_ret = NULL;
 	struct tree_t *p = ast_parent(token);
 	char *expected = NULL;
-	int pos = 0, err = -1;
+	int pos = 0, err = -1, loop = 1;
 
 	if((err = lexer_eat(lexer, TFUNCTION, &token_ret)) < 0) {
 		*tree_out = NULL;
@@ -1028,7 +1028,11 @@ static int lexer_parse_function(struct lexer_t *lexer, struct tree_t *tree_in, s
 		return err;
 	}
 	pos = node->token->pos+1;
-	while(1) {
+
+	if(lexer_peek(lexer, 0, RPAREN, NULL) == 0) {
+		loop = 0;
+	}
+	while(loop) {
 		if((err = lexer_eat(lexer, TCOMMA, &token_ret)) < 0) {
 			char *tmp = "a comma or closing parenthesis";
 			pos -= strlen(node->token->value);
@@ -1577,7 +1581,7 @@ static int run_function(struct tree_t *tree, int in_action, struct rules_t *obj,
 			return -1;
 		}
 		if(v_res.type_ == JSON_STRING) {
-			if(event_lookup_variable(v_res.string_, obj, &v1, validate, ORIGIN_RULE) == -1) {
+			if(event_lookup_variable(v_res.string_, obj, &v1, validate, in_action) == -1) {
 				varcont_free(&v1);
 				varcont_free(&v_res);
 				return -1;
@@ -1638,7 +1642,7 @@ static int run_action(struct tree_t *tree, struct rules_t *obj, unsigned short v
 
 			switch(v_res1.type_) {
 				case JSON_STRING: {
-					if(event_lookup_variable(v_res1.string_, obj, &v1, validate, ORIGIN_RULE) == -1) {
+					if(event_lookup_variable(v_res1.string_, obj, &v1, validate, 1) == -1) {
 						varcont_free(&v1);
 						varcont_free(&v_res);
 						varcont_free(&v_res1);
@@ -1792,7 +1796,7 @@ static int interpret(struct tree_t *tree, int in_action, struct rules_t *obj, un
 					return -1;
 				}
 				if(v1.type_ == JSON_STRING) {
-					if(event_lookup_variable(v1.string_, obj, &v3, validate, ORIGIN_RULE) == -1) {
+					if(event_lookup_variable(v1.string_, obj, &v3, validate, in_action) == -1) {
 						varcont_free(&v1);
 						return -1;
 					} else {
@@ -1819,7 +1823,7 @@ static int interpret(struct tree_t *tree, int in_action, struct rules_t *obj, un
 					}
 				}
 				if(v2.type_ == JSON_STRING) {
-					if(event_lookup_variable(v2.string_, obj, &v4, validate, ORIGIN_RULE) == -1) {
+					if(event_lookup_variable(v2.string_, obj, &v4, validate, in_action) == -1) {
 						varcont_free(&v2);
 						return -1;
 					} else {
@@ -1976,7 +1980,7 @@ static void events_iterate(uv_work_t *req) {
 	return;
 }
 
-void *events_loop(int reason, void *param) {
+void *events_loop(int reason, void *param, void *userdata) {
 	struct rules_t *tmp_rules = NULL;
 	struct rule_list_t *list = NULL;
 	struct reason_config_update_t *data1 = NULL;
@@ -2083,8 +2087,8 @@ void *events_loop(int reason, void *param) {
 }
 
 void event_init(void) {
-	eventpool_callback(REASON_CONFIG_UPDATED, events_loop);
-	eventpool_callback(REASON_CODE_RECEIVED, events_loop);
+	eventpool_callback(REASON_CONFIG_UPDATED, events_loop, NULL);
+	eventpool_callback(REASON_CODE_RECEIVED, events_loop, NULL);
 
 	event_operator_init();
 	event_action_init();

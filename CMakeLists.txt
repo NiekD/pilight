@@ -12,13 +12,17 @@ if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE DEBUG)
 endif()
 
-set (CMAKE_C_STANDARD 90)
+set(CMAKE_C_STANDARD 90)
 set(CMAKE_SKIP_RULE_DEPENDENCY TRUE)
 set(CPACK_DEB_COMPONENT_INSTALL TRUE)
 
 if(COVERALLS)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0") # debug, no optimisation
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage") # enabling coverage
+endif()
+
+if(${PILIGHT_UNITTEST})
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-stack-protector")
 endif()
 
 if(${WEBSERVER_HTTPS} MATCHES "OFF")
@@ -172,14 +176,14 @@ if(NOT WIN32)
 				/usr/lib
 				/usr/lib32
 				/usr/lib64
-				/usr/lib/i386-linux-gnu		
+				/usr/lib/i386-linux-gnu
 				/usr/lib/x86_64-linux-gnu
 				/usr/local/lib
 				/usr/local/lib32
 				/usr/local/lib64
 				/usr/lib/arm-linux-gnueabi
 				/usr/lib/arm-linux-gnueabihf
-			NO_DEFAULT_PATH)	
+			NO_DEFAULT_PATH)
 
 		if(${CMAKE_PCAP_LIBS_INIT} MATCHES "CMAKE_PCAP_LIBS_INIT-NOTFOUND")
 			message(FATAL_ERROR "Looking for libpcap - not found")
@@ -321,7 +325,7 @@ endif()
 	find_package(Threads REQUIRED)
 #endif()
 if(NOT WIN32)
-	if(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")	
+	if(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 		find_package(Backtrace REQUIRED)
 	endif()
 endif()
@@ -334,12 +338,12 @@ if(${MODULESPACK} MATCHES "OFF" OR WIN32)
 	if(WIN32)
 		add_custom_command(OUTPUT ${PROJECT_SOURCE_DIR}/res/win32/admin.obj COMMAND ${CMAKE_RC_COMPILER} /Fo ${PROJECT_SOURCE_DIR}/res/win32/admin.obj ${PROJECT_SOURCE_DIR}/res/win32/admin.rc)
 		add_custom_command(OUTPUT ${PROJECT_SOURCE_DIR}/res/win32/icon.obj COMMAND ${CMAKE_RC_COMPILER} /Fo ${PROJECT_SOURCE_DIR}/res/win32/icon.obj ${PROJECT_SOURCE_DIR}/res/win32/icon.rc)
-		add_library(admin STATIC ${PROJECT_SOURCE_DIR}/res/win32/admin.obj)	
-		add_library(icon STATIC ${PROJECT_SOURCE_DIR}/res/win32/icon.obj)	
+		add_library(admin STATIC ${PROJECT_SOURCE_DIR}/res/win32/admin.obj)
+		add_library(icon STATIC ${PROJECT_SOURCE_DIR}/res/win32/icon.obj)
 		set_source_files_properties(${PROJECT_SOURCE_DIR}/res/win32/admin.obj PROPERTIES EXTERNAL_OBJECT true GENERATED true)
 		set_source_files_properties(${PROJECT_SOURCE_DIR}/res/win32/icon.obj PROPERTIES EXTERNAL_OBJECT true GENERATED true)
-		set_target_properties(admin PROPERTIES LINKER_LANGUAGE C)	
-		set_target_properties(icon PROPERTIES LINKER_LANGUAGE C)	
+		set_target_properties(admin PROPERTIES LINKER_LANGUAGE C)
+		set_target_properties(icon PROPERTIES LINKER_LANGUAGE C)
 	endif()
 
 	add_library(${PROJECT_NAME} OBJECT ${libs_files})
@@ -349,10 +353,13 @@ if(${MODULESPACK} MATCHES "OFF" OR WIN32)
 	if(${PILIGHT_UNITTEST})
 		add_library(DSO OBJECT ${PROJECT_SOURCE_DIR}/tests/libdso.c)
 		add_library(GPIO OBJECT ${PROJECT_SOURCE_DIR}/tests/libgpio.c)
+		add_library(SERIAL OBJECT ${PROJECT_SOURCE_DIR}/tests/libserial.c)
 		set_property(TARGET DSO PROPERTY POSITION_INDEPENDENT_CODE TRUE)
 		set_property(TARGET DSO PROPERTY C_STANDARD 99)
 		set_property(TARGET GPIO PROPERTY POSITION_INDEPENDENT_CODE TRUE)
 		set_property(TARGET GPIO PROPERTY C_STANDARD 99)
+		set_property(TARGET SERIAL PROPERTY POSITION_INDEPENDENT_CODE TRUE)
+		set_property(TARGET SERIAL PROPERTY C_STANDARD 99)
 	endif()
 
 	add_library(${PROJECT_NAME}_static STATIC $<TARGET_OBJECTS:${PROJECT_NAME}>)
@@ -365,8 +372,11 @@ if(${MODULESPACK} MATCHES "OFF" OR WIN32)
 	if(${PILIGHT_UNITTEST})
 		add_library(dso_shared SHARED $<TARGET_OBJECTS:DSO>)
 		add_library(gpio_shared SHARED $<TARGET_OBJECTS:GPIO>)
+		add_library(serial_shared SHARED $<TARGET_OBJECTS:SERIAL>)
 		set_property(TARGET dso_shared PROPERTY C_STANDARD 99)
 		set_property(TARGET gpio_shared PROPERTY C_STANDARD 99)
+		set_property(TARGET serial_shared PROPERTY C_STANDARD 99)
+		target_link_libraries(${PROJECT_NAME}_shared gpio_shared)
 	endif()
 
 	set_property(TARGET ${PROJECT_NAME}_static PROPERTY C_STANDARD 99)
@@ -449,13 +459,13 @@ if(${MODULESPACK} MATCHES "OFF" OR WIN32)
 		target_link_libraries(${PROJECT_NAME}_static ${CMAKE_SSL_LIBS_INIT})
 		target_link_libraries(${PROJECT_NAME}_static ${CMAKE_CRYPTO_LIBS_INIT})
 		target_link_libraries(${PROJECT_NAME}_static ${CMAKE_ZLIB_LIBS_INIT})
-	endif()	
-	
+	endif()
+
 	if(${PROTOCOL_ARPING} MATCHES "ON")
 		target_link_libraries(${PROJECT_NAME}_shared ${CMAKE_PCAP_LIBS_INIT})
 		target_link_libraries(${PROJECT_NAME}_static ${CMAKE_PCAP_LIBS_INIT})
 	endif()
-		
+
 	if(NOT WIN32)
 		if(CMAKE_BUILD_TYPE MATCHES DEBUG AND NOT ${CMAKE_SYSTEM_PROCESSOR} MATCHES "^mips" AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 			# target_link_libraries(${PROJECT_NAME}_shared asan)
@@ -470,6 +480,7 @@ if(${MODULESPACK} MATCHES "OFF" OR WIN32)
 	if(${PILIGHT_UNITTEST})
 		set_target_properties(dso_shared PROPERTIES OUTPUT_NAME dso)
 		set_target_properties(gpio_shared PROPERTIES OUTPUT_NAME gpio)
+		set_target_properties(serial_shared PROPERTIES OUTPUT_NAME serial)
 	endif()
 
 	if(NOT WIN32)
@@ -500,10 +511,10 @@ if(${MODULESPACK} MATCHES "OFF" OR WIN32)
 		if(EXISTS "/etc/${PROJECT_NAME}/config.json")
 			install(CODE "execute_process(COMMAND mv /etc/${PROJECT_NAME}/config.json /etc/${PROJECT_NAME}/config.json.bak)")
 		endif()
-		
+
 		if(EXISTS "/etc/${PROJECT_NAME}/pilight.pem")
 			install(CODE "execute_process(COMMAND mv /etc/${PROJECT_NAME}/pilight.pem /etc/${PROJECT_NAME}/pilight.pem.bak)")
-		endif()		
+		endif()
 
 		install(PROGRAMS ${PROJECT_SOURCE_DIR}/res/init/${PROJECT_NAME}.initd DESTINATION /etc/init.d/ RENAME ${PROJECT_NAME})
 		install(FILES ${PROJECT_SOURCE_DIR}/res/config/config.json-default DESTINATION /etc/${PROJECT_NAME}/ RENAME config.json COMPONENT ${PROJECT_NAME})
@@ -575,7 +586,7 @@ if(${MODULESPACK} MATCHES "OFF" OR WIN32)
 	else()
 		target_link_libraries(${PROJECT_NAME}-daemon ${CMAKE_THREAD_LIBS_INIT})
 	endif()
-	
+
 	if(WIN32)
 		add_executable(${PROJECT_NAME}-raw raw.c ${PROJECT_SOURCE_DIR}/res/win32/icon.obj)
 	else()
@@ -725,9 +736,9 @@ if(${MODULESPACK} MATCHES "OFF" OR WIN32)
 		target_link_libraries(${PROJECT_NAME}-sha256 ${Backtrace_LIBRARIES})
 	endif()
 	if(CMAKE_BUILD_TYPE MATCHES DEBUG AND ${CMAKE_SYSTEM_PROCESSOR} MATCHES "^mips")
-		target_link_libraries(${PROJECT_NAME}-sha256 pthread)	
+		target_link_libraries(${PROJECT_NAME}-sha256 pthread)
 	else()
-		target_link_libraries(${PROJECT_NAME}-sha256 ${CMAKE_THREAD_LIBS_INIT})	
+		target_link_libraries(${PROJECT_NAME}-sha256 ${CMAKE_THREAD_LIBS_INIT})
 	endif()
 
 	if(WIN32)
@@ -746,7 +757,7 @@ if(${MODULESPACK} MATCHES "OFF" OR WIN32)
 	if(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 		target_link_libraries(${PROJECT_NAME}-flash ${Backtrace_LIBRARIES})
 	endif()
-	if(CMAKE_BUILD_TYPE MATCHES DEBUG AND ${CMAKE_SYSTEM_PROCESSOR} MATCHES "^mips")	
+	if(CMAKE_BUILD_TYPE MATCHES DEBUG AND ${CMAKE_SYSTEM_PROCESSOR} MATCHES "^mips")
 		target_link_libraries(${PROJECT_NAME}-flash pthread)
 	else()
 		target_link_libraries(${PROJECT_NAME}-flash ${CMAKE_THREAD_LIBS_INIT})

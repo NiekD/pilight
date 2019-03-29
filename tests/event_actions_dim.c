@@ -21,7 +21,8 @@
 #include "../libs/pilight/core/pilight.h"
 #include "../libs/pilight/core/eventpool.h"
 #include "../libs/pilight/protocols/protocol.h"
-#include "../libs/pilight/lua/lua.h"
+#include "../libs/pilight/config/settings.h"
+#include "../libs/pilight/lua_c/lua.h"
 #include "../libs/pilight/events/events.h"
 #include "../libs/pilight/events/action.h"
 #include "../libs/pilight/events/operator.h"
@@ -69,7 +70,8 @@ static void test_event_actions_dim_get_parameters(CuTest *tc) {
 	uv_replace_allocator(_MALLOC, _REALLOC, _CALLOC, _FREE);
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_dim.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_dimmer.json", CONFIG_SETTINGS));
@@ -128,7 +130,8 @@ static void test_event_actions_dim_check_parameters(CuTest *tc) {
 	genericLabelInit();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_dim.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_dimmer.json", CONFIG_SETTINGS | CONFIG_DEVICES));
@@ -922,7 +925,7 @@ static void test_event_actions_dim_check_parameters(CuTest *tc) {
 	CuAssertIntEquals(tc, 0, xfree());
 }
 
-static void *control_device(int reason, void *param) {
+static void *control_device(int reason, void *param, void *userdata) {
 	struct reason_control_device_t *data = param;
 	char *values = json_stringify(data->values, NULL);
 
@@ -1008,11 +1011,11 @@ static struct event_action_args_t *initialize_vars(int test) {
 			FREE(v.string_);
 
 			memset(&v, 0, sizeof(struct varcont_t));
-			v.number_ = 2; v.type_ = JSON_NUMBER; v.decimals_ = 0;
+			v.number_ = 10; v.type_ = JSON_NUMBER; v.decimals_ = 0;
 			args = event_action_add_argument(args, "TO", &v);
 
 			memset(&v, 0, sizeof(struct varcont_t));
-			v.number_ = 10; v.type_ = JSON_NUMBER; v.decimals_ = 0;
+			v.number_ = 2; v.type_ = JSON_NUMBER; v.decimals_ = 0;
 			args = event_action_add_argument(args, "FROM", &v);
 
 			memset(&v, 0, sizeof(struct varcont_t));
@@ -1041,6 +1044,35 @@ static struct event_action_args_t *initialize_vars(int test) {
 			args = event_action_add_argument(args, "TO", &v);
 
 			memset(&v, 0, sizeof(struct varcont_t));
+			v.number_ = 10; v.type_ = JSON_NUMBER; v.decimals_ = 0;
+			args = event_action_add_argument(args, "FROM", &v);
+
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("1 SECOND"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "IN", &v);
+			FREE(v.string_);
+
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("500 MILLISECOND"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "AFTER", &v);
+			FREE(v.string_);
+
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("250 MILLISECOND"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "FOR", &v);
+			FREE(v.string_);
+		} break;
+		case 5: {
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.string_ = STRDUP("dimmer"); v.type_ = JSON_STRING;
+			args = event_action_add_argument(args, "DEVICE", &v);
+			FREE(v.string_);
+
+			memset(&v, 0, sizeof(struct varcont_t));
+			v.number_ = 2; v.type_ = JSON_NUMBER; v.decimals_ = 0;
+			args = event_action_add_argument(args, "TO", &v);
+
+			memset(&v, 0, sizeof(struct varcont_t));
 			v.string_ = STRDUP("500 MILLISECOND"); v.type_ = JSON_STRING;
 			args = event_action_add_argument(args, "FOR", &v);
 			FREE(v.string_);
@@ -1050,7 +1082,7 @@ static struct event_action_args_t *initialize_vars(int test) {
 			args = event_action_add_argument(args, "AFTER", &v);
 			FREE(v.string_);
 		} break;
-		case 5: {
+		case 6: {
 			memset(&v, 0, sizeof(struct varcont_t));
 			v.string_ = STRDUP("dimmer"); v.type_ = JSON_STRING;
 			args = event_action_add_argument(args, "DEVICE", &v);
@@ -1070,7 +1102,7 @@ static struct event_action_args_t *initialize_vars(int test) {
 			args = event_action_add_argument(args, "AFTER", &v);
 			FREE(v.string_);
 		} break;
-		case 6: {
+		case 7: {
 			memset(&v, 0, sizeof(struct varcont_t));
 			v.string_ = STRDUP("dimmer"); v.type_ = JSON_STRING;
 			args = event_action_add_argument(args, "DEVICE", &v);
@@ -1115,7 +1147,8 @@ static void test_event_actions_dim_run(CuTest *tc) {
 	genericLabelInit();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_dim.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_dimmer.json", CONFIG_SETTINGS | CONFIG_DEVICES));
@@ -1128,7 +1161,7 @@ static void test_event_actions_dim_run(CuTest *tc) {
 	uv_timer_start(timer_req, (void (*)(uv_timer_t *))stop, 1000, 0);
 
 	eventpool_init(EVENTPOOL_THREADED);
-	eventpool_callback(REASON_CONTROL_DEVICE, control_device);
+	eventpool_callback(REASON_CONTROL_DEVICE, control_device, NULL);
 
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
@@ -1183,7 +1216,8 @@ static void test_event_actions_dim_run_delayed(CuTest *tc) {
 	genericLabelInit();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_dim.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_dimmer.json", CONFIG_SETTINGS | CONFIG_DEVICES));
@@ -1196,7 +1230,7 @@ static void test_event_actions_dim_run_delayed(CuTest *tc) {
 	uv_timer_start(timer_req, (void (*)(uv_timer_t *))stop, 750, 0);
 
 	eventpool_init(EVENTPOOL_THREADED);
-	eventpool_callback(REASON_CONTROL_DEVICE, control_device);
+	eventpool_callback(REASON_CONTROL_DEVICE, control_device, NULL);
 
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
@@ -1228,7 +1262,7 @@ static void test_event_actions_dim_run_delayed(CuTest *tc) {
 	CuAssertIntEquals(tc, 0, xfree());
 }
 
-static void test_event_actions_dim_run_stepped(CuTest *tc) {
+static void test_event_actions_dim_run_stepped_down(CuTest *tc) {
 	if(suiteFailed()) return;
 
 	printf("[ %-48s ]\n", __FUNCTION__);
@@ -1237,12 +1271,12 @@ static void test_event_actions_dim_run_stepped(CuTest *tc) {
 	int i = 0;
 	run = 0;
 	steps = 0;
-	nrsteps = 11;
-	interval[0] = 525000;
-	for(i=1;i<10;i++) {
+	nrsteps = 10;
+	interval[0] = 650000;
+	for(i=1;i<9;i++) {
 		interval[i] = 150000;
 	}
-	interval[10] = 275000;
+	interval[9] = 275000;
 	checktime = 1;
 
 	memtrack();
@@ -1255,7 +1289,8 @@ static void test_event_actions_dim_run_stepped(CuTest *tc) {
 	genericLabelInit();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_dim.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_dimmer.json", CONFIG_SETTINGS | CONFIG_DEVICES));
@@ -1268,7 +1303,7 @@ static void test_event_actions_dim_run_stepped(CuTest *tc) {
 	uv_timer_start(timer_req, (void (*)(uv_timer_t *))stop, 15000, 0);
 
 	eventpool_init(EVENTPOOL_THREADED);
-	eventpool_callback(REASON_CONTROL_DEVICE, control_device);
+	eventpool_callback(REASON_CONTROL_DEVICE, control_device, NULL);
 
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
@@ -1296,17 +1331,90 @@ static void test_event_actions_dim_run_stepped(CuTest *tc) {
 	eventpool_gc();
 	storage_gc();
 
-	CuAssertIntEquals(tc, 11, steps);
+	CuAssertIntEquals(tc, 10, steps);
+	CuAssertIntEquals(tc, 0, xfree());
+}
+
+static void test_event_actions_dim_run_stepped_up(CuTest *tc) {
+	if(suiteFailed()) return;
+
+	printf("[ %-48s ]\n", __FUNCTION__);
+	fflush(stdout);
+
+	int i = 0;
+	run = 0;
+	steps = 0;
+	nrsteps = 10;
+	interval[0] = 655000;
+	for(i=1;i<9;i++) {
+		interval[i] = 150000;
+	}
+	interval[9] = 275000;
+	checktime = 1;
+
+	memtrack();
+
+	uv_replace_allocator(_MALLOC, _REALLOC, _CALLOC, _FREE);
+
+	gtc = tc;
+
+	arctechDimmerInit();
+	genericLabelInit();
+
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "event_actions_dim.c");
+
+	storage_init();
+	CuAssertIntEquals(tc, 0, storage_read("event_actions_dimmer.json", CONFIG_SETTINGS | CONFIG_DEVICES));
+	event_action_init();
+
+	if((timer_req = MALLOC(sizeof(uv_timer_t))) == NULL) {
+		OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+	}
+	uv_timer_init(uv_default_loop(), timer_req);
+	uv_timer_start(timer_req, (void (*)(uv_timer_t *))stop, 15000, 0);
+
+	eventpool_init(EVENTPOOL_THREADED);
+	eventpool_callback(REASON_CONTROL_DEVICE, control_device, NULL);
+
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	timestamp.first = timestamp.second;
+	timestamp.second = 1000000 * (unsigned int)tv.tv_sec + (unsigned int)tv.tv_usec;
+
+	struct event_action_args_t *args = initialize_vars(4);
+	CuAssertIntEquals(tc, 0, event_action_check_arguments("dim", args));
+
+	args = initialize_vars(4);
+	CuAssertIntEquals(tc, 0, event_action_run("dim", args));
+
+	uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+	uv_walk(uv_default_loop(), walk_cb, NULL);
+	uv_run(uv_default_loop(), UV_RUN_ONCE);
+
+	while(uv_loop_close(uv_default_loop()) == UV_EBUSY) {
+		uv_run(uv_default_loop(), UV_RUN_ONCE);
+	}
+
+	plua_gc();
+	event_action_gc();
+	event_function_gc();
+	protocol_gc();
+	eventpool_gc();
+	storage_gc();
+
+	CuAssertIntEquals(tc, 10, steps);
 	CuAssertIntEquals(tc, 0, xfree());
 }
 
 static void second_dimmer(void *param) {
 	usleep(100);
 
-	struct event_action_args_t *args = initialize_vars(5);
+	struct event_action_args_t *args = initialize_vars(6);
 	CuAssertIntEquals(gtc, 0, event_action_check_arguments("dim", args));
 
-	args = initialize_vars(5);
+	args = initialize_vars(6);
 	CuAssertIntEquals(gtc, 0, event_action_run("dim", args));
 }
 
@@ -1343,7 +1451,8 @@ static void test_event_actions_dim_run_overlapped(CuTest *tc) {
 	genericLabelInit();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_dim.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_dimmer.json", CONFIG_SETTINGS | CONFIG_DEVICES));
@@ -1356,12 +1465,12 @@ static void test_event_actions_dim_run_overlapped(CuTest *tc) {
 	uv_timer_start(timer_req, (void (*)(uv_timer_t *))stop, 1500, 0);
 
 	eventpool_init(EVENTPOOL_THREADED);
-	eventpool_callback(REASON_CONTROL_DEVICE, control_device);
+	eventpool_callback(REASON_CONTROL_DEVICE, control_device, NULL);
 
-	struct event_action_args_t *args = initialize_vars(4);
+	struct event_action_args_t *args = initialize_vars(5);
 	CuAssertIntEquals(tc, 0, event_action_check_arguments("dim", args));
 
-	args = initialize_vars(4);
+	args = initialize_vars(5);
 	CuAssertIntEquals(tc, 0, event_action_run("dim", args));
 
 	uv_thread_create(&pth, second_dimmer, NULL);
@@ -1413,7 +1522,8 @@ static void test_event_actions_dim_run_override(CuTest *tc) {
 	genericLabelInit();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_dim.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_dimmer.json", CONFIG_SETTINGS));
@@ -1433,17 +1543,17 @@ static void test_event_actions_dim_run_override(CuTest *tc) {
 	uv_timer_start(timer_req, (void (*)(uv_timer_t *))stop, 500, 0);
 
 	eventpool_init(EVENTPOOL_THREADED);
-	eventpool_callback(REASON_CONTROL_DEVICE, control_device);
+	eventpool_callback(REASON_CONTROL_DEVICE, control_device, NULL);
 
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
 	timestamp.first = timestamp.second;
 	timestamp.second = 1000000 * (unsigned int)tv.tv_sec + (unsigned int)tv.tv_usec;
 
-	struct event_action_args_t *args = initialize_vars(6);
+	struct event_action_args_t *args = initialize_vars(7);
 	CuAssertIntEquals(tc, 0, event_action_check_arguments("dim", args));
 
-	args = initialize_vars(6);
+	args = initialize_vars(7);
 	CuAssertIntEquals(tc, 0, event_action_run("dim", args));
 
 	uv_thread_create(&pth, config_update, NULL);
@@ -1497,7 +1607,8 @@ CuSuite *suite_event_actions_dim(void) {
 	SUITE_ADD_TEST(suite, test_event_actions_dim_check_parameters);
 	SUITE_ADD_TEST(suite, test_event_actions_dim_run);
 	SUITE_ADD_TEST(suite, test_event_actions_dim_run_delayed);
-	SUITE_ADD_TEST(suite, test_event_actions_dim_run_stepped);
+	SUITE_ADD_TEST(suite, test_event_actions_dim_run_stepped_down);
+	SUITE_ADD_TEST(suite, test_event_actions_dim_run_stepped_up);
 	SUITE_ADD_TEST(suite, test_event_actions_dim_run_overlapped);
 	SUITE_ADD_TEST(suite, test_event_actions_dim_run_override);
 

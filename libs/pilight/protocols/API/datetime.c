@@ -73,7 +73,7 @@ static void *reason_code_received_free(void *param) {
 	return NULL;
 }
 
-static void *adaptDevice(int reason, void *param) {
+static void *adaptDevice(int reason, void *param, void *userdata) {
 	struct JsonNode *jdevice = NULL;
 	struct JsonNode *jtime = NULL;
 
@@ -146,7 +146,7 @@ static void *thread(void *param) {
 	return (void *)NULL;
 }
 
-static void *addDevice(int reason, void *param) {
+static void *addDevice(int reason, void *param, void *userdata) {
 	struct JsonNode *jdevice = NULL;
 	struct JsonNode *jprotocols = NULL;
 	struct JsonNode *jid = NULL;
@@ -266,25 +266,25 @@ void datetimeInit(void) {
 	datetime->multipleId = 0;
 	datetime->masterOnly = 1;
 
-	options_add(&datetime->options, 'o', "longitude", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, NULL);
-	options_add(&datetime->options, 'a', "latitude", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, NULL);
-	options_add(&datetime->options, 'y', "year", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{3,4}$");
-	options_add(&datetime->options, 'm', "month", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{3,4}$");
-	options_add(&datetime->options, 'd', "day", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
-	options_add(&datetime->options, 'w', "weekday", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
-	options_add(&datetime->options, 'h', "hour", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
-	options_add(&datetime->options, 'i', "minute", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
-	options_add(&datetime->options, 's', "second", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
-	options_add(&datetime->options, 'z', "dst", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
+	options_add(&datetime->options, "o", "longitude", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, NULL);
+	options_add(&datetime->options, "a", "latitude", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, NULL);
+	options_add(&datetime->options, "y", "year", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{3,4}$");
+	options_add(&datetime->options, "m", "month", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{3,4}$");
+	options_add(&datetime->options, "d", "day", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
+	options_add(&datetime->options, "w", "weekday", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
+	options_add(&datetime->options, "h", "hour", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
+	options_add(&datetime->options, "i", "minute", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
+	options_add(&datetime->options, "s", "second", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
+	options_add(&datetime->options, "z", "dst", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
 
-	options_add(&datetime->options, 0, "show-datetime", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)0, "^[10]{1}$");
-	options_add(&datetime->options, 0, "format", OPTION_HAS_VALUE, GUI_SETTING, JSON_STRING, (void *)format, NULL);
+	options_add(&datetime->options, "0", "show-datetime", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)0, "^[10]{1}$");
+	options_add(&datetime->options, "0", "format", OPTION_HAS_VALUE, GUI_SETTING, JSON_STRING, (void *)format, NULL);
 
 	// datetime->initDev=&initDev;
 	datetime->gc=&gc;
 
-	eventpool_callback(REASON_DEVICE_ADDED, addDevice);
-	eventpool_callback(REASON_DEVICE_ADAPT, adaptDevice);
+	eventpool_callback(REASON_DEVICE_ADDED, addDevice, NULL);
+	eventpool_callback(REASON_DEVICE_ADAPT, adaptDevice, NULL);
 }
 
 #if defined(MODULE) && !defined(_WIN32)

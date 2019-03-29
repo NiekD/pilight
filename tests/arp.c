@@ -57,6 +57,7 @@
 #include "../libs/pilight/core/common.h"
 #include "../libs/pilight/core/json.h"
 #include "../libs/pilight/core/CuTest.h"
+#include "../libs/pilight/lua_c/lua.h"
 #include "../libs/pilight/protocols/protocol.h"
 #include "../libs/pilight/protocols/network/ping.h"
 
@@ -123,7 +124,7 @@ static void walk_cb(uv_handle_t *handle, void *arg) {
 	}
 }
 
-static void *arp_event(int reason, void *param) {
+static void *arp_event(int reason, void *param, void *userdata) {
 	struct reason_arp_device_t *data1 = param;
 	switch(reason) {
 		case REASON_ARP_FOUND_DEVICE:
@@ -255,7 +256,7 @@ static void write_cb(uv_poll_t *req) {
 	 * Respond with an arp request on the first ip
 	 * across all network devices.
 	 */
-	if(check <= nrdata && start == 1) {
+	if(check <= nrdata /*&& start == 1*/) {
 		check++;
 		struct in_addr in_ip, in_netmask, in_min;
 
@@ -432,6 +433,10 @@ static void test_arp(CuTest *tc) {
 	);
 	fclose(f);
 
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "arp.c");
+
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("arp.json", CONFIG_SETTINGS));
 
@@ -449,9 +454,9 @@ static void test_arp(CuTest *tc) {
 	arp_scan();
 
 	eventpool_init(EVENTPOOL_NO_THREADS);
-	eventpool_callback(REASON_ARP_FOUND_DEVICE, arp_event);
-	eventpool_callback(REASON_ARP_CHANGED_DEVICE, arp_event);
-	eventpool_callback(REASON_ARP_LOST_DEVICE, arp_event);
+	eventpool_callback(REASON_ARP_FOUND_DEVICE, arp_event, NULL);
+	eventpool_callback(REASON_ARP_CHANGED_DEVICE, arp_event, NULL);
+	eventpool_callback(REASON_ARP_LOST_DEVICE, arp_event, NULL);
 
 	uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 	uv_walk(uv_default_loop(), walk_cb, NULL);
@@ -469,6 +474,7 @@ static void test_arp(CuTest *tc) {
 
 	eventpool_gc();
 	storage_gc();
+	plua_gc();
 	arp_gc();
 
 	for(i=0;i<4;i++) {

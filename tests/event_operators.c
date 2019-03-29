@@ -14,7 +14,7 @@
 #include "../libs/pilight/core/CuTest.h"
 #include "../libs/pilight/core/pilight.h"
 #include "../libs/pilight/core/binary.h"
-#include "../libs/pilight/lua/lua.h"
+#include "../libs/pilight/lua_c/lua.h"
 #include "../libs/pilight/events/operator.h"
 
 #include "alltests.h"
@@ -33,7 +33,8 @@ static void test_event_operator_and(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -174,7 +175,8 @@ static void test_event_operator_divide(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -295,7 +297,6 @@ static void test_event_operator_divide(CuTest *tc) {
 	CuAssertDblEquals(tc, ret.number_, 2, EPSILON);
 	CuAssertIntEquals(tc, ret.decimals_, 0);
 
-
 	storage_gc();
 	event_operator_gc();
 	eventpool_gc();
@@ -317,7 +318,8 @@ static void test_event_operator_eq(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -484,6 +486,10 @@ static void test_event_operator_ge(CuTest *tc) {
 	int x = 0;
 
 	memtrack();
+
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -652,7 +658,8 @@ static void test_event_operator_gt(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -820,7 +827,8 @@ static void test_event_operator_intdivide(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -1019,7 +1027,8 @@ static void test_event_operator_le(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -1188,7 +1197,8 @@ static void test_event_operator_lt(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -1356,7 +1366,8 @@ static void test_event_operator_minus(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -1488,7 +1499,8 @@ static void test_event_operator_modulus(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -1670,7 +1682,8 @@ static void test_event_operator_multiply(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -1802,7 +1815,8 @@ static void test_event_operator_ne(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -1971,7 +1985,8 @@ static void test_event_operator_or(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));
@@ -2112,7 +2127,8 @@ static void test_event_operator_plus(CuTest *tc) {
 	memtrack();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_operators.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_operator.json", CONFIG_SETTINGS));

@@ -17,7 +17,7 @@
 #include "../libs/pilight/core/CuTest.h"
 #include "../libs/pilight/core/pilight.h"
 #include "../libs/pilight/core/binary.h"
-#include "../libs/pilight/lua/lua.h"
+#include "../libs/pilight/lua_c/lua.h"
 #include "../libs/pilight/events/events.h"
 #include "../libs/pilight/events/operator.h"
 #include "../libs/pilight/events/action.h"
@@ -1017,6 +1017,34 @@ static struct tests_t get_tests[] = {
 		{ &receives[4] },
 		{ 1, 0 }
 	},
+	{
+		"uppercase action name",
+		"{\"devices\":{"\
+			"\"testlabel\":{\"protocol\":[\"generic_label\"],\"id\":[{\"id\":1}],\"label\":\"foo\",\"color\":\"black\"}"\
+		"},"\
+		"\"gui\":{},"\
+		"\"rules\":{"\
+			"\"switch\":{\"rule\":\"IF 1 == 1 THEN LABEL DEVICE testlabel TO 1000 + 10\",\"active\":1}"\
+		"},\"settings\":%s,\"hardware\":{},\"registry\":{}}",
+		0, UV_RUN_DEFAULT,
+		0, &updates1[0],
+		{ &receives[4] },
+		{ 1, 0 }
+	},
+	{
+		"single function argument test",
+		"{\"devices\":{"\
+			"\"testlabel\":{\"protocol\":[\"generic_label\"],\"id\":[{\"id\":1}],\"label\":\"foo\",\"color\":\"black\"}"\
+		"},"\
+		"\"gui\":{},"\
+		"\"rules\":{"\
+			"\"switch\":{\"rule\":\"IF 1 == 1 THEN label DEVICE testlabel TO SINGLEARGFUNC(1010)\",\"active\":1}"\
+		"},\"settings\":%s,\"hardware\":{},\"registry\":{}}",
+		0, UV_RUN_DEFAULT,
+		0, &updates1[0],
+		{ &receives[4] },
+		{ 1, 0 }
+	},
 };
 
 static void close_cb(uv_handle_t *handle) {
@@ -1029,7 +1057,7 @@ static void walk_cb(uv_handle_t *handle, void *arg) {
 	}
 }
 
-static void *control_device(int reason, void *param) {
+static void *control_device(int reason, void *param, void *userdata) {
 	int a = get_tests[testnr].nrreceives[1], i = 0;
 	int len = sizeof(receives)/sizeof(receives[0]);
 	struct reason_control_device_t *data = param;
@@ -1103,6 +1131,8 @@ static void test_events(CuTest *tc) {
 
 		plua_init();
 
+		test_set_plua_path(tc, __FILE__, "events.c");
+
 		storage_init();
 		CuAssertIntEquals(tc, 0, storage_read("events.json", CONFIG_SETTINGS));
 		event_action_init();
@@ -1123,7 +1153,7 @@ static void test_events(CuTest *tc) {
 
 		if(get_tests[testnr].valid == 0) {
 			eventpool_init(EVENTPOOL_NO_THREADS);
-			eventpool_callback(REASON_CONTROL_DEVICE, control_device);
+			eventpool_callback(REASON_CONTROL_DEVICE, control_device, NULL);
 			event_init();
 
 			if(get_tests[testnr].type == 0) {
@@ -1147,13 +1177,14 @@ static void test_events(CuTest *tc) {
 				uv_run(uv_default_loop(), UV_RUN_ONCE);
 			}
 		}
-		event_operator_gc();
-		event_action_gc();
-		event_function_gc();
+		// event_operator_gc();
+		// event_action_gc();
+		// event_function_gc();
 		protocol_gc();
 		storage_gc();
 		eventpool_gc();
 		plua_gc();
+		events_gc();
 
 		int len = sizeof(receives)/sizeof(receives[0]), i = 0, x = 0;
 

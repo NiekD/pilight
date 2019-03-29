@@ -57,8 +57,10 @@
 #include "../libs/pilight/core/log.h"
 #include "../libs/pilight/core/json.h"
 #include "../libs/pilight/core/CuTest.h"
+#include "../libs/pilight/lua_c/lua.h"
 #include "../libs/pilight/protocols/protocol.h"
 #include "../libs/pilight/protocols/network/arping.h"
+#include "alltests.h"
 
 #include "alltests.h"
 
@@ -123,7 +125,7 @@ static void stop(uv_timer_t *req) {
 	uv_stop(uv_default_loop());
 }
 
-static void *received(int reason, void *param) {
+static void *received(int reason, void *param, void *userdata) {
 	struct reason_code_received_t *data = param;
 	char msg[128], *p = msg;
 
@@ -443,6 +445,10 @@ static void test_protocols_network_arping(CuTest *tc) {
 	);
 	fclose(f);
 
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "protocols_network_arping.c");
+
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("arp.json", CONFIG_SETTINGS));
 
@@ -467,7 +473,7 @@ static void test_protocols_network_arping(CuTest *tc) {
 
 	eventpool_trigger(REASON_DEVICE_ADDED, done, json_decode(add1));
 	eventpool_trigger(REASON_DEVICE_ADDED, done, json_decode(add2));
-	eventpool_callback(REASON_CODE_RECEIVED, received);
+	eventpool_callback(REASON_CODE_RECEIVED, received, NULL);
 
 	uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 	uv_walk(uv_default_loop(), walk_cb, NULL);
@@ -485,6 +491,7 @@ static void test_protocols_network_arping(CuTest *tc) {
 
 	arp_gc();
 	storage_gc();
+	plua_gc();
 	eventpool_gc();
 	protocol_gc();
 

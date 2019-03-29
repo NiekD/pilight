@@ -27,8 +27,8 @@
 #include "../core/common.h"
 #include "../core/dso.h"
 #include "../core/log.h"
-#include "../storage/storage.h"
-#include "../lua/lua.h"
+#include "../config/settings.h"
+#include "../lua_c/lua.h"
 
 #include "operator.h"
 
@@ -49,10 +49,10 @@ void event_operator_init(void) {
 	char *operator_root = OPERATOR_ROOT;
 
 	if(f == NULL) {
-		OUT_OF_MEMORY
+		OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
 	}
 
-	settings_select_string(ORIGIN_MASTER, "operators-root", &operator_root);
+	int ret = config_setting_get_string("operators-root", 0, &operator_root);
 
 	if((d = opendir(operator_root))) {
 		while((file = readdir(d)) != NULL) {
@@ -68,6 +68,11 @@ void event_operator_init(void) {
 			}
 		}
 	}
+
+	if(ret == 0 || operator_root != (void *)OPERATOR_ROOT) {
+		FREE(operator_root);
+	}
+
 	closedir(d);
 	FREE(f);
 }
@@ -203,7 +208,7 @@ static int plua_operator_module_run(struct lua_State *L, char *file, struct varc
 	} else if(lua_isstring(L, -1) == 1) {
 		int l = strlen(lua_tostring(L, -1));
 		if((v->string_ = REALLOC(v->string_, l+1)) == NULL) {
-			OUT_OF_MEMORY
+			OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
 		}
 		strcpy(v->string_, lua_tostring(L, -1));
 		v->type_ = JSON_STRING;

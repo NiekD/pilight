@@ -20,6 +20,7 @@
 #include "../libs/pilight/core/network.h"
 #include "../libs/pilight/core/log.h"
 #include "../libs/pilight/core/ssl.h"
+#include "../libs/pilight/lua_c/lua.h"
 #include "../libs/libuv/uv.h"
 
 #include "alltests.h"
@@ -640,6 +641,10 @@ static void test_mail(CuTest *tc) {
 
 	uv_replace_allocator(_MALLOC, _REALLOC, _CALLOC, _FREE);
 
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "mail.c");
+
 	eventpool_init(EVENTPOOL_NO_THREADS);
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("mail.json", CONFIG_SETTINGS));
@@ -675,6 +680,7 @@ static void test_mail(CuTest *tc) {
 
 	ssl_gc();
 	storage_gc();
+	plua_gc();
 	eventpool_gc();
 
 	CuAssertIntEquals(tc, 9, testnr);
@@ -692,6 +698,10 @@ static void test_mail_threaded(CuTest *tc) {
 	memtrack();
 
 	uv_replace_allocator(_MALLOC, _REALLOC, _CALLOC, _FREE);
+
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "mail.c");
 
 	eventpool_init(EVENTPOOL_NO_THREADS);
 	storage_init();
@@ -733,6 +743,7 @@ static void test_mail_threaded(CuTest *tc) {
 
 	ssl_gc();
 	storage_gc();
+	plua_gc();
 	eventpool_gc();
 
 	CuAssertIntEquals(tc, 9, testnr);
@@ -800,6 +811,10 @@ static void test_mail_inactive_server(CuTest *tc) {
 
 	CuAssertIntEquals(gtc, 0, sendmail("127.0.0.1", user, password, 10025, 0, mail, callback1));
 
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "mail.c");
+
 	eventpool_init(EVENTPOOL_NO_THREADS);
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("mail.json", CONFIG_SETTINGS));
@@ -818,6 +833,7 @@ static void test_mail_inactive_server(CuTest *tc) {
 
 	ssl_gc();
 	storage_gc();
+	plua_gc();
 	eventpool_gc();
 
 	CuAssertIntEquals(tc, 0, xfree());
@@ -826,13 +842,20 @@ static void test_mail_inactive_server(CuTest *tc) {
 CuSuite *suite_mail(void) {
 	CuSuite *suite = CuSuiteNew();
 
+	char config[1024] = "{\"devices\":{},\"gui\":{},\"rules\":{},"\
+		"\"settings\":{\"pem-file\":\"%s../res/pilight.pem\"},"\
+		"\"hardware\":{},\"registry\":{}}";
+
+	char *file = STRDUP(__FILE__);
+	if(file == NULL) {
+		OUT_OF_MEMORY
+	}
+	str_replace("mail.c", "", &file);
+
 	FILE *f = fopen("mail.json", "w");
-	fprintf(f,
-		"{\"devices\":{},\"gui\":{},\"rules\":{},"\
-		"\"settings\":{\"pem-file\":\"../res/pilight.pem\"},"\
-		"\"hardware\":{},\"registry\":{}}"
-	);
+	fprintf(f, config, file);
 	fclose(f);
+	FREE(file);
 
 	SUITE_ADD_TEST(suite, test_mail);
 	SUITE_ADD_TEST(suite, test_mail_threaded);

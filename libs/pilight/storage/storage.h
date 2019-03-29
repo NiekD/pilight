@@ -124,7 +124,7 @@ void storage_register(struct storage_t **, const char *);
 
 struct JsonNode *config_print(int, const char *);
 struct JsonNode *values_print(const char *);
-void *config_values_update(int, void *);
+void *config_values_update(int, void *, void *);
 
 void devices_import(struct JsonNode *);
 int devices_select(enum origin_t, char *, struct JsonNode **);
@@ -136,11 +136,11 @@ int devices_select_settings(enum origin_t, char *, int i, char **, struct varcon
 int devices_select_id(enum origin_t, char *, int, char **, struct varcont_t *);
 
 int settings_select(enum origin_t, char *, struct JsonNode **);
-int settings_select_number(enum origin_t, char *, double *);
+/*int settings_select_number(enum origin_t, char *, double *);
 int settings_select_string(enum origin_t, char *, char **);
 int settings_select_number_element(enum origin_t, char *id, int, double *);
 int settings_select_string_element(enum origin_t, char *id, int, char **);
-
+*/
 int rules_select(enum origin_t, char *, struct JsonNode **);
 int rules_select_struct(enum origin_t origin, char *id, struct rules_t **out);
 

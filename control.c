@@ -309,7 +309,7 @@ close:
 	kill(getpid(), SIGINT);
 }
 
-static void *socket_disconnected(int reason, void *param) {
+static void *socket_disconnected(int reason, void *param, void *userdata) {
 	struct reason_socket_disconnected_t *data = param;
 
 	socket_close(data->fd);
@@ -318,7 +318,7 @@ static void *socket_disconnected(int reason, void *param) {
 	return NULL;
 }
 
-static void *socket_connected(int reason, void *param) {
+static void *socket_connected(int reason, void *param, void *userdata) {
 	struct reason_socket_connected_t *data = param;
 
 	connected = 1;
@@ -362,7 +362,7 @@ static int select_server(int server) {
 	return -1;
 }
 
-static void *ssdp_found(int reason, void *param) {
+static void *ssdp_found(int reason, void *param, void *userdata) {
 	struct reason_ssdp_received_t *data = param;
 	struct ssdp_list_t *node = NULL;
 	int match = 0;
@@ -490,15 +490,15 @@ int main(int argc, char **argv) {
 	uv_signal_start(signal_req, signal_cb, SIGINT);	
 
 	/* Define all CLI arguments of this program */
-	options_add(&options, 'H', "help", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'V', "version", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'd', "device", OPTION_HAS_VALUE, 0,  JSON_NULL, NULL, NULL);
-	options_add(&options, 's', "state", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'v', "values", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'S', "server", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
-	options_add(&options, 'P', "port", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "[0-9]{1,4}");
-	options_add(&options, 'C', "config", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'I', "instance", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "H", "help", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "V", "version", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "d", "device", OPTION_HAS_VALUE, 0,  JSON_NULL, NULL, NULL);
+	options_add(&options, "s", "state", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "v", "values", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "S", "server", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
+	options_add(&options, "P", "port", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "[0-9]{1,4}");
+	options_add(&options, "C", "config", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "I", "instance", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
 
 	/* Store all CLI arguments for later usage
 	   and also check if the CLI arguments where
@@ -506,7 +506,7 @@ int main(int argc, char **argv) {
 	   fill all necessary values in the options struct */
 	while(1) {
 		int c;
-		c = options_parse(&options, argc, argv, 1, &optarg);
+		c = options_parse1(&options, argc, argv, 1, &optarg, NULL);
 		if(c == -1)
 			break;
 		if(c == -2) {
@@ -602,9 +602,9 @@ int main(int argc, char **argv) {
 	FREE(fconfig);
 
 	eventpool_init(EVENTPOOL_NO_THREADS);
-	eventpool_callback(REASON_SSDP_RECEIVED, ssdp_found);
-	eventpool_callback(REASON_SOCKET_CONNECTED, socket_connected);
-	eventpool_callback(REASON_SOCKET_DISCONNECTED, socket_disconnected);
+	eventpool_callback(REASON_SSDP_RECEIVED, ssdp_found, NULL);
+	eventpool_callback(REASON_SOCKET_CONNECTED, socket_connected, NULL);
+	eventpool_callback(REASON_SOCKET_DISCONNECTED, socket_disconnected, NULL);
 	
 	if(server != NULL && port > 0) {
 		connect_to_server(server, port);

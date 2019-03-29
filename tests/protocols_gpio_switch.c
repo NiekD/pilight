@@ -16,6 +16,7 @@
 #include "../libs/pilight/core/mem.h"
 #include "../libs/pilight/core/common.h"
 #include "../libs/pilight/core/CuTest.h"
+#include "../libs/pilight/lua_c/lua.h"
 #include "../libs/pilight/protocols/protocol.h"
 #include "../libs/pilight/protocols/GPIO/gpio_switch.h"
 
@@ -47,7 +48,7 @@ static void stop(uv_timer_t *req) {
 	uv_stop(uv_default_loop());
 }
 
-static void *received(int reason, void *param) {
+static void *received(int reason, void *param, void *userdata) {
 	struct reason_code_received_t *data = param;
 	switch(step++) {
 		case 0: {
@@ -287,6 +288,10 @@ static void test_protocols_gpio_switch_param4(CuTest *tc) {
 
 	eventpool_init(EVENTPOOL_NO_THREADS);
 
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "protocols_gpio_switch.c");
+
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("protocols_gpio_switch.json", CONFIG_SETTINGS));
 
@@ -303,12 +308,17 @@ static void test_protocols_gpio_switch_param4(CuTest *tc) {
 	}
 
 	storage_gc();
+	plua_gc();
 	protocol_gc();
 	eventpool_gc();
 	wiringXGC();
 
 	CuAssertIntEquals(tc, 0, xfree());
 }
+
+/*
+
+  This is already validated in the config
 
 static void test_protocols_gpio_switch_param5(CuTest *tc) {
 	printf("[ %-48s ]\n", __FUNCTION__);
@@ -353,12 +363,14 @@ static void test_protocols_gpio_switch_param5(CuTest *tc) {
 	}
 
 	storage_gc();
+	plua_gc();
 	protocol_gc();
 	eventpool_gc();
 	wiringXGC();
 
 	CuAssertIntEquals(tc, 0, xfree());
 }
+*/
 
 static void test_protocols_gpio_switch_param6(CuTest *tc) {
 	printf("[ %-48s ]\n", __FUNCTION__);
@@ -387,6 +399,10 @@ static void test_protocols_gpio_switch_param6(CuTest *tc) {
 
 	eventpool_init(EVENTPOOL_NO_THREADS);
 
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "protocols_gpio_switch.c");
+
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("protocols_gpio_switch.json", CONFIG_SETTINGS));
 
@@ -403,6 +419,7 @@ static void test_protocols_gpio_switch_param6(CuTest *tc) {
 	}
 
 	storage_gc();
+	plua_gc();
 	protocol_gc();
 	eventpool_gc();
 	wiringXGC();
@@ -437,6 +454,10 @@ static void test_protocols_gpio_switch_param7(CuTest *tc) {
 
 	eventpool_init(EVENTPOOL_NO_THREADS);
 
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "protocols_gpio_switch.c");
+
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("protocols_gpio_switch.json", CONFIG_SETTINGS));
 
@@ -453,6 +474,7 @@ static void test_protocols_gpio_switch_param7(CuTest *tc) {
 	}
 
 	storage_gc();
+	plua_gc();
 	protocol_gc();
 	eventpool_gc();
 	wiringXGC();
@@ -497,6 +519,10 @@ static void test_protocols_gpio_switch(CuTest *tc) {
 
 	eventpool_init(EVENTPOOL_NO_THREADS);
 
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "protocols_gpio_switch.c");
+
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("protocols_gpio_switch.json", CONFIG_SETTINGS));
 
@@ -505,7 +531,7 @@ static void test_protocols_gpio_switch(CuTest *tc) {
 	json_delete(jsettings);
 
 	eventpool_trigger(REASON_DEVICE_ADDED, done, json_decode(add));
-	eventpool_callback(REASON_CODE_RECEIVED, received);
+	eventpool_callback(REASON_CODE_RECEIVED, received, NULL);
 
 	uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 	uv_walk(uv_default_loop(), walk_cb, NULL);
@@ -516,6 +542,7 @@ static void test_protocols_gpio_switch(CuTest *tc) {
 	}
 
 	storage_gc();
+	plua_gc();
 	protocol_gc();
 	eventpool_gc();
 	wiringXGC();
@@ -532,7 +559,7 @@ CuSuite *suite_protocols_gpio_switch(void) {
 	SUITE_ADD_TEST(suite, test_protocols_gpio_switch_param2);
 	SUITE_ADD_TEST(suite, test_protocols_gpio_switch_param3);
 	SUITE_ADD_TEST(suite, test_protocols_gpio_switch_param4);
-	SUITE_ADD_TEST(suite, test_protocols_gpio_switch_param5);
+	// SUITE_ADD_TEST(suite, test_protocols_gpio_switch_param5);
 	SUITE_ADD_TEST(suite, test_protocols_gpio_switch_param6);
 	SUITE_ADD_TEST(suite, test_protocols_gpio_switch_param7);
 	SUITE_ADD_TEST(suite, test_protocols_gpio_switch);

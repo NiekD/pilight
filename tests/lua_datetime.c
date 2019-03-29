@@ -15,8 +15,8 @@
 #include "../libs/pilight/core/CuTest.h"
 #include "../libs/pilight/core/pilight.h"
 #include "../libs/pilight/core/common.h"
-#include "../libs/pilight/lua/lua.h"
-#include "../libs/pilight/lua/lualibrary.h"
+#include "../libs/pilight/lua_c/lua.h"
+#include "../libs/pilight/lua_c/lualibrary.h"
 
 static struct {
 	union {
@@ -79,6 +79,7 @@ static void test_lua_datetime_strptime(CuTest *tc) {
 
 	plua_init();
 	plua_override_global("print", plua_print);
+	plua_pause_coverage(1);
 
 	struct lua_state_t *state = plua_get_free_state();
 
@@ -104,6 +105,8 @@ static void test_lua_datetime_strptime(CuTest *tc) {
 	FREE(lua_return[0].var.string_);
 
 	uv_mutex_unlock(&state->lock);
+
+	plua_pause_coverage(0);
 	plua_gc();
 	CuAssertIntEquals(tc, 0, xfree());
 }

@@ -27,7 +27,8 @@
 #include "../core/options.h"
 #include "../core/dso.h"
 #include "../core/log.h"
-#include "../lua/lua.h"
+#include "../config/settings.h"
+#include "../lua_c/lua.h"
 
 #include "action.h"
 
@@ -61,10 +62,10 @@ void event_action_init(void) {
 	char *actions_root = ACTION_ROOT;
 
 	if(f == NULL) {
-		OUT_OF_MEMORY
+		OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
 	}
 
-	settings_select_string(ORIGIN_MASTER, "actions-root", &actions_root);
+	int ret = config_setting_get_string("actions-root", 0, &actions_root);
 
 	if((d = opendir(actions_root))) {
 		while((file = readdir(d)) != NULL) {
@@ -79,6 +80,9 @@ void event_action_init(void) {
 				}
 			}
 		}
+	}
+	if(ret == 0 || actions_root != (void *)ACTION_ROOT) {
+		FREE(actions_root);
 	}
 	closedir(d);
 	FREE(f);
@@ -144,13 +148,13 @@ struct event_action_args_t *event_action_add_argument(struct event_action_args_t
 	cpy = node;
 	if(node == NULL) {
 		if((node = MALLOC(sizeof(struct event_action_args_t))) == NULL) {
-			OUT_OF_MEMORY
+			OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
 		}
 		memset(node, 0, sizeof(struct event_action_args_t));
 
 		cpy = node;
 		if((node->key = STRDUP(key)) == NULL) {
-			OUT_OF_MEMORY
+			OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
 		}
 		node->var = NULL;
 		if(head != NULL) {
@@ -168,10 +172,10 @@ struct event_action_args_t *event_action_add_argument(struct event_action_args_t
 
 	if(var != NULL) {
 		if((cpy->var = REALLOC(cpy->var, sizeof(struct varcont_t *)*(cpy->nrvalues+1))) == NULL) {
-			OUT_OF_MEMORY
+			OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
 		}
 		if((cpy->var[cpy->nrvalues] = MALLOC(sizeof(struct varcont_t))) == NULL) {
-			OUT_OF_MEMORY
+			OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
 		}
 		switch(var->type_) {
 			case JSON_NUMBER: {
@@ -302,6 +306,7 @@ void event_action_free_argument(struct event_action_args_t *args) {
 					FREE(tmp1->var[i]->string_);
 				break;
 			}
+			FREE(tmp1->var[i]);
 		}
 		if(tmp1->nrvalues > 0) {
 			FREE(tmp1->var);
@@ -323,12 +328,18 @@ static int event_action_prepare_call(char *module, char *func, struct event_acti
 		return -1;
 	}
 
+	char *lower = STRDUP(module);
 	char name[255], *p = name;
 	memset(name, '\0', 255);
 
-	sprintf(p, "action.%s", module);
+	if(lower == NULL) {
+		OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+	}
 
+	strtolower(&lower);
+	sprintf(p, "action.%s", lower);
 	lua_getglobal(L, name);
+	FREE(lower);
 
 	if(lua_isnil(L, -1) != 0) {
 		event_action_free_argument(args);
@@ -341,7 +352,7 @@ static int event_action_prepare_call(char *module, char *func, struct event_acti
 		char *file = NULL;
 		struct plua_module_t *tmp = plua_get_modules();
 		while(tmp) {
-			if(strcmp(module, tmp->name) == 0) {
+			if(stricmp(module, tmp->name) == 0) {
 				file = tmp->file;
 				state->module = tmp;
 				break;
@@ -410,11 +421,11 @@ static int event_action_parameters_run(struct lua_State *L, char *file, int *nr,
 	}
 
 	if(((*ret) = MALLOC((*nr)*sizeof(char *))) == NULL) {
-		OUT_OF_MEMORY
+		OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
 	}
 	for(i=1;i<=*nr;i++) {
 		if(((*ret)[i-1] = STRDUP((char *)lua_tostring(L, -1))) == NULL) {
-			OUT_OF_MEMORY
+			OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
 		}
 		lua_remove(L, -1);
 	}
@@ -437,14 +448,20 @@ int event_action_get_parameters(char *module, int *nr, char ***ret) {
 		return -1;
 	}
 
+	char *lower = STRDUP(module);
 	char name[255], *p = name;
 	memset(name, '\0', 255);
 
-	sprintf(p, "action.%s", module);
+	if(lower == NULL) {
+		OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+	}
 
+	strtolower(&lower);
+	sprintf(p, "action.%s", lower);
 	lua_getglobal(L, name);
+	FREE(lower);
+
 	if(lua_isnil(L, -1) != 0) {
-		lua_remove(L, -1);
 		lua_remove(L, -1);
 		assert(lua_gettop(L) == 0);
 		uv_mutex_unlock(&state->lock);

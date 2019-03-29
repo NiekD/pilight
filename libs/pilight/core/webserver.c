@@ -51,7 +51,8 @@
 	#include <sys/time.h>
 #endif
 
-#include "../storage/storage.h"
+#include "../config/settings.h"
+#include "../config/registry.h"
 #include "eventpool.h"
 #include "sha256cache.h"
 #include "pilight.h"
@@ -96,7 +97,6 @@ static char *authentication_username = NULL;
 static char *authentication_password = NULL;
 static unsigned short loop = 1;
 static char *root = NULL;
-static unsigned short root_free = 0;
 
 typedef struct broadcast_list_t {
 	char *out;
@@ -168,10 +168,6 @@ int webserver_gc(void) {
 
 	loop = 0;
 
-	if(root_free == 1) {
-		FREE(root);
-	}
-
 #ifdef _WIN32
 	uv_mutex_lock(&webserver_lock);
 #else
@@ -212,13 +208,25 @@ int webserver_gc(void) {
 
 	if(poll_http_req != NULL) {
 		poll_close_cb(poll_http_req);
+		poll_http_req = NULL;
 	}
 	if(poll_https_req != NULL) {
 		poll_close_cb(poll_https_req);
+		poll_https_req = NULL;
 	}
 
-	authentication_username = NULL;
-	authentication_password = NULL;
+	if(authentication_username != NULL) {
+		FREE(authentication_username);
+		authentication_username = NULL;
+	}
+	if(authentication_password != NULL) {
+		FREE(authentication_password);
+		authentication_password = NULL;
+	}
+	if(root != NULL) {
+		FREE(root);
+		root = NULL;
+	}
 
 	sha256cache_gc();
 	logprintf(LOG_DEBUG, "garbage collected webserver library");
@@ -405,7 +413,7 @@ size_t websocket_write(uv_poll_t *req, int opcode, const char *data, unsigned lo
 	return data_len;
 }
 
-static void *webserver_send(int reason, void *param) {
+static void *webserver_send(int reason, void *param, void *userdata) {
 	struct reason_socket_send_t *data = param;
 	struct connection_t c;
 	memset(&c, 0, sizeof(struct connection_t));
@@ -523,6 +531,7 @@ static int parse_rest(uv_poll_t *req) {
 	struct connection_t *conn = custom_poll_data->data;
 
 	char **array = NULL, **array1 = NULL;
+	char *key = NULL, *value = NULL;
 	struct JsonNode *jobject = json_mkobject();
 	struct JsonNode *jcode = json_mkobject();
 	struct JsonNode *jvalues = json_mkobject();
@@ -559,8 +568,8 @@ static int parse_rest(uv_poll_t *req) {
 		a = explode((char *)decoded, "&", &array), b = 0, c = 0;
 		memset(state, 0, 16);
 
-		if(a > 1) {
-			int type = 0; //0 = SEND, 1 = CONTROL
+		if(a >= 1) {
+			int type = 0; //0 = SEND, 1 = CONTROL, 2 = REGISTRY
 			json_append_member(jobject, "code", jcode);
 
 			if(strcmp(conn->uri, "/send") == 0) {
@@ -569,46 +578,52 @@ static int parse_rest(uv_poll_t *req) {
 			} else if(strcmp(conn->uri, "/control") == 0) {
 				type = 1;
 				json_append_member(jobject, "action", json_mkstring("control"));
+			} else if(strcmp(conn->uri, "/registry") == 0) {
+				type = 2;
+				json_append_member(jobject, "action", json_mkstring("registry"));
 			}
 
-			for(b=0;b<a;b++) {
-				c = explode(array[b], "=", &array1);
-				if(c == 2) {
-					if(strcmp(array1[0], "protocol") == 0) {
-						struct JsonNode *jprotocol = json_mkarray();
-						json_append_element(jprotocol, json_mkstring(array1[1]));
-						json_append_member(jcode, "protocol", jprotocol);
-						has_protocol = 1;
-					} else if(strcmp(array1[0], "state") == 0) {
-						strcpy(state, array1[1]);
-					} else if(strcmp(array1[0], "device") == 0) {
-						dev = array1[1];
-						if(devices_select(ORIGIN_WEBSERVER, array1[1], NULL) != 0) {
-							char *z = "{\"message\":\"failed\",\"error\":\"device does not exist\"}";
-							send_data(req, "application/json", z, strlen(z));
-							goto clear;
-						}
-					} else if(strncmp(array1[0], "values", 6) == 0) {
-						char name[255], *ptr = name;
-						if(sscanf(array1[0], "values[%254[a-z]]", ptr) != 1) {
-							char *z = "{\"message\":\"failed\",\"error\":\"values should be passed like this \'values[dimlevel]=10\'\"}";
-							send_data(req, "application/json", z, strlen(z));
-							goto clear;
-						} else {
-							if(isNumeric(array1[1]) == 0) {
-								json_append_member(jvalues, name, json_mknumber(atof(array1[1]), nrDecimals(array1[1])));
-							} else {
-								json_append_member(jvalues, name, json_mkstring(array1[1]));
+			if(type == 0 || type == 1) {
+				for(b=0;b<a;b++) {
+					c = explode(array[b], "=", &array1);
+					if(c == 2) {
+						if(strcmp(array1[0], "protocol") == 0) {
+							struct JsonNode *jprotocol = json_mkarray();
+							json_append_element(jprotocol, json_mkstring(array1[1]));
+							json_append_member(jcode, "protocol", jprotocol);
+							has_protocol = 1;
+						} else if(strcmp(array1[0], "state") == 0) {
+							strcpy(state, array1[1]);
+						} else if(strcmp(array1[0], "device") == 0) {
+							dev = array1[1];
+							if(devices_select(ORIGIN_WEBSERVER, array1[1], NULL) != 0) {
+								char *z = "{\"message\":\"failed\",\"error\":\"device does not exist\"}";
+								send_data(req, "application/json", z, strlen(z));
+								goto clear;
 							}
+						} else if(strncmp(array1[0], "values", 6) == 0) {
+							char name[255], *ptr = name;
+							if(sscanf(array1[0], "values[%254[a-z]]", ptr) != 1) {
+								char *z = "{\"message\":\"failed\",\"error\":\"values should be passed like this \'values[dimlevel]=10\'\"}";
+								send_data(req, "application/json", z, strlen(z));
+								goto clear;
+							} else {
+								if(isNumeric(array1[1]) == 0) {
+									json_append_member(jvalues, name, json_mknumber(atof(array1[1]), nrDecimals(array1[1])));
+								} else {
+									json_append_member(jvalues, name, json_mkstring(array1[1]));
+								}
+							}
+						} else if(isNumeric(array1[1]) == 0) {
+							json_append_member(jcode, array1[0], json_mknumber(atof(array1[1]), nrDecimals(array1[1])));
+						} else {
+							json_append_member(jcode, array1[0], json_mkstring(array1[1]));
 						}
-					} else if(isNumeric(array1[1]) == 0) {
-						json_append_member(jcode, array1[0], json_mknumber(atof(array1[1]), nrDecimals(array1[1])));
-					} else {
-						json_append_member(jcode, array1[0], json_mkstring(array1[1]));
 					}
+					array_free(&array1, c);
 				}
-			}
-			if(type == 0) {
+				c = 0;
+
 				if(has_protocol == 0) {
 					char *z = "{\"message\":\"failed\",\"error\":\"no protocol was sent\"}";
 					send_data(req, "application/json", z, strlen(z));
@@ -638,12 +653,140 @@ static int parse_rest(uv_poll_t *req) {
 						}
 					}
 				}
+			} else if(type == 2) {
+				int getsetrm = 0; // g, s or r
+
+				for(b=0;b<a;b++) {
+					c = explode(array[b], "=", &array1);
+					if((strcmp(array1[0], "get") == 0) ||
+						 (strcmp(array1[0], "set") == 0) ||
+						 (strcmp(array1[0], "remove") == 0)) {
+						getsetrm = array1[0][0];
+						if((key = STRDUP(array1[1])) == NULL) {
+							OUT_OF_MEMORY
+						}
+					}
+					if(strcmp(array1[0], "value") == 0) {
+						if((value = STRDUP(array1[1])) == NULL) {
+							OUT_OF_MEMORY
+						}
+					}
+					array_free(&array1, c);
+				}
+				c = 0;
+
+				struct varcont_t out;
+				memset(&out, 0, sizeof(struct varcont_t));
+				if(key == NULL) {
+					char *z = "{\"message\":\"failed\"}";
+					send_data(req, "application/json", z, strlen(z));
+					FREE(decoded);
+					goto clear;
+				} else if(getsetrm == 'g') {
+					if(value != NULL) {
+						FREE(value);
+					}
+					if(config_registry_get(key, &out) == 0) {
+						if(out.type_ == LUA_TNUMBER) {
+							struct JsonNode *jsend = json_mkobject();
+							json_append_member(jsend, "message", json_mkstring("registry"));
+							json_append_member(jsend, "value", json_mknumber(out.number_, 6));
+							json_append_member(jsend, "key", json_mkstring(key));
+							char *output = json_stringify(jsend, NULL);
+							send_data(req, "application/json", output, strlen(output));
+							json_free(output);
+							json_delete(jsend);
+							FREE(decoded);
+							FREE(key);
+							goto clear;
+						} else if(out.type_ == LUA_TSTRING) {
+							struct JsonNode *jsend = json_mkobject();
+							json_append_member(jsend, "message", json_mkstring("registry"));
+							json_append_member(jsend, "value", json_mkstring(out.string_));
+							json_append_member(jsend, "key", json_mkstring(key));
+							char *output = json_stringify(jsend, NULL);
+							send_data(req, "application/json", output, strlen(output));
+							json_free(output);
+							json_delete(jsend);
+							FREE(out.string_);
+							FREE(decoded);
+							FREE(key);
+							goto clear;
+						} else {
+							char *z = "{\"message\":\"failed\"}";
+							send_data(req, "application/json", z, strlen(z));
+							FREE(decoded);
+							FREE(key);
+							goto clear;
+						}
+					} else {
+						FREE(key);
+					}
+				} else if(getsetrm == 's') {
+					if(value == NULL) {
+						char *z = "{\"message\":\"failed\"}";
+						send_data(req, "application/json", z, strlen(z));
+						FREE(decoded);
+						FREE(key);
+						goto clear;
+					} else {
+						if(isNumeric(value) == 0) {
+							if(config_registry_set_number(key, atof(value)) == 0) {
+								char *z = "{\"message\":\"success\"}";
+								send_data(req, "application/json", z, strlen(z));
+								FREE(decoded);
+								FREE(key);
+								FREE(value);
+								goto clear;
+							}
+						} else {
+							if(config_registry_set_string(key, value) == 0) {
+								char *z = "{\"message\":\"success\"}";
+								send_data(req, "application/json", z, strlen(z));
+								FREE(decoded);
+								FREE(key);
+								FREE(value);
+								goto clear;
+							}
+						}
+					}
+					char *z = "{\"message\":\"failed\"}";
+					send_data(req, "application/json", z, strlen(z));
+					FREE(decoded);
+					FREE(key);
+					FREE(value);
+					goto clear;
+				} else if(getsetrm == 'r') {
+					if(value != NULL) {
+						FREE(value);
+					}
+					if(config_registry_get(key, &out) == 0 &&
+						config_registry_set_null(key) == 0) {
+						char *z = "{\"message\":\"success\"}";
+						send_data(req, "application/json", z, strlen(z));
+						if(out.type_ == JSON_STRING) {
+							FREE(out.string_);
+						}
+						FREE(decoded);
+						FREE(key);
+						goto clear;
+					}
+					char *z = "{\"message\":\"failed\"}";
+					send_data(req, "application/json", z, strlen(z));
+					FREE(decoded);
+					FREE(key);
+					goto clear;
+				}
 			}
 			json_delete(jvalues);
 			json_delete(jobject);
 		}
 		FREE(decoded);
 		array_free(&array, a);
+	} else {
+		json_delete(jcode);
+		json_delete(jvalues);
+		json_delete(jobject);
 	}
 	char *z = "{\"message\":\"failed\"}";
 	send_data(req, "application/json", z, strlen(z));
@@ -745,7 +888,7 @@ static int request_handler(uv_poll_t *req) {
 
 	if(conn->is_websocket == 0) {
 		if(conn->uri != NULL && strlen(conn->uri) > 0) {
-			if(strcmp(conn->uri, "/send") == 0 || strcmp(conn->uri, "/control") == 0) {
+			if(strcmp(conn->uri, "/send") == 0 || strcmp(conn->uri, "/control") == 0 || strcmp(conn->uri, "/registry") == 0) {
 				return parse_rest(req);
 			} else if(strcmp(conn->uri, "/config") == 0) {
 				char media[15];
@@ -1013,7 +1156,7 @@ static void webserver_process(uv_async_t *handle) {
 #endif
 }
 
-static void *broadcast(int reason, void *param) {
+static void *broadcast(int reason, void *param, void *userdata) {
 	if(loop == 0) {
 		return NULL;
 	}
@@ -1282,12 +1425,12 @@ static void send_websocket_handshake(uv_poll_t *req, const char *key) {
 
 	memset(&sha, '\0', 20);
 
-	 snprintf(buf, sizeof(buf), "%s%s", key, magic);
+	snprintf(buf, sizeof(buf), "%s%s", key, magic);
 	mbedtls_sha1_init(&ctx);
 	mbedtls_sha1_starts(&ctx);
 	mbedtls_sha1_update(&ctx, (unsigned char *)buf, strlen(buf));
 	mbedtls_sha1_finish(&ctx, sha);
-	 b64_sha = base64encode(p, 20);
+	b64_sha = base64encode(p, 20);
 	int i = sprintf(buf,
               "HTTP/1.1 101 Web Socket Protocol Handshake\r\n"
               "Connection: Upgrade\r\n"
@@ -1839,7 +1982,8 @@ int webserver_start(void) {
 	}
 	uv_async_init(uv_default_loop(), async_req, webserver_process);
 
-	double itmp = 0.0;
+	// double itmp = 0.0;
+	int itmp = 0;
 	int webserver_enabled = 0;
 	loop = 1;
 
@@ -1854,32 +1998,31 @@ int webserver_start(void) {
 #endif
 	}
 
-	if(settings_select_number(ORIGIN_WEBSERVER, "webserver-http-port", &itmp) == 0) { http_port = (int)itmp; }
-	if(settings_select_number(ORIGIN_WEBSERVER, "webgui-websockets", &itmp) == 0) { websockets = (int)itmp; }
-	if(settings_select_number(ORIGIN_WEBSERVER, "webserver-cache", &itmp) == 0) { cache = (int)itmp; }
-	if(settings_select_number(ORIGIN_WEBSERVER, "webserver-enable", &itmp) == 0) { webserver_enabled = (int)itmp; }
+	if(config_setting_get_number("webserver-http-port", 0, &itmp) == 0) { http_port = itmp; }
+	if(config_setting_get_number("webgui-websockets", 0, &itmp) == 0) { websockets = itmp; }
+	if(config_setting_get_number("webserver-cache", 0, &itmp) == 0) { cache = itmp; }
+	if(config_setting_get_number("webserver-enable", 0, &itmp) == 0) { webserver_enabled = itmp; }
 #ifdef WEBSERVER_HTTPS
-	if(settings_select_number(ORIGIN_WEBSERVER, "webserver-https-port", &itmp) == 0) { https_port = (int)itmp; }
+	if(config_setting_get_number("webserver-https-port", 0, &itmp) == 0) { https_port = itmp; }
 #endif
 
-	if(settings_select_string(ORIGIN_WEBSERVER, "webserver-root", &root) != 0) {
+	if(config_setting_get_string("webserver-root", 0, &root) != 0) {
 		/*LCOV_EXCL_START*/
 		if((root = MALLOC(strlen(WEBSERVER_ROOT)+1)) == NULL) {
 			OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
 		}
 		strcpy(root, WEBSERVER_ROOT);
-		root_free = 1;
 		/*LCOV_EXCL_STOP*/
 	}
 
-	settings_select_string_element(ORIGIN_WEBSERVER, "webserver-authentication", 0, &authentication_username);
-	settings_select_string_element(ORIGIN_WEBSERVER, "webserver-authentication", 1, &authentication_password);
+	config_setting_get_string("webserver-authentication", 0, &authentication_username);
+	config_setting_get_string("webserver-authentication", 1, &authentication_password);
 
-	eventpool_callback(REASON_CONFIG_UPDATE, broadcast);
-	eventpool_callback(REASON_BROADCAST_CORE, broadcast);
+	eventpool_callback(REASON_CONFIG_UPDATE, broadcast, NULL);
+	eventpool_callback(REASON_BROADCAST_CORE, broadcast, NULL);
 	// eventpool_callback(REASON_ADHOC_CONNECTED, adhoc_mode);
 	// eventpool_callback(REASON_ADHOC_DISCONNECTED, webserver_restart);
-	eventpool_callback(REASON_SOCKET_SEND, webserver_send);
+	eventpool_callback(REASON_SOCKET_SEND, webserver_send, NULL);
 
 #ifdef WEBSERVER_HTTPS
 	if(https_port > 0 && webserver_enabled == 1) {

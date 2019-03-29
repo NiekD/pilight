@@ -275,7 +275,7 @@ static void *enable(void *param) {
 	return NULL;
 }
 
-static void *adaptDevice(int reason, void *param) {
+static void *adaptDevice(int reason, void *param, void *userdata) {
 	struct JsonNode *jdevice = NULL;
 	struct JsonNode *jchild = NULL;
 
@@ -312,7 +312,7 @@ static void *adaptDevice(int reason, void *param) {
 	return NULL;
 }
 
-static void *addDevice(int reason, void *param) {
+static void *addDevice(int reason, void *param, void *userdata) {
 	struct JsonNode *jdevice = NULL;
 	struct JsonNode *jprotocols = NULL;
 	struct JsonNode *jid = NULL;
@@ -543,25 +543,25 @@ void openweathermapInit(void) {
 	openweathermap->multipleId = 0;
 	openweathermap->masterOnly = 1;
 
-	options_add(&openweathermap->options, 't', "temperature", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{1,5}$");
-	options_add(&openweathermap->options, 'h', "humidity", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{1,5}$");
-	options_add(&openweathermap->options, 'l', "location", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "^([a-zA-Z-]|[[:space:]])+$");
-	options_add(&openweathermap->options, 'c', "country", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "^[a-zA-Z]+$");
-	options_add(&openweathermap->options, 'a', "api", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "^[a-zA-Z0-9]+$");
-	options_add(&openweathermap->options, 'x', "sunrise", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{3,4}$");
-	options_add(&openweathermap->options, 'y', "sunset", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{3,4}$");
-	options_add(&openweathermap->options, 's', "sun", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
-	options_add(&openweathermap->options, 'u', "update", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
+	options_add(&openweathermap->options, "t", "temperature", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{1,5}$");
+	options_add(&openweathermap->options, "h", "humidity", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{1,5}$");
+	options_add(&openweathermap->options, "l", "location", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "^([a-zA-Z-]|[[:space:]])+$");
+	options_add(&openweathermap->options, "c", "country", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "^[a-zA-Z]+$");
+	options_add(&openweathermap->options, "a", "api", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "^[a-zA-Z0-9]+$");
+	options_add(&openweathermap->options, "x", "sunrise", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{3,4}$");
+	options_add(&openweathermap->options, "y", "sunset", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{3,4}$");
+	options_add(&openweathermap->options, "s", "sun", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
+	options_add(&openweathermap->options, "u", "update", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, NULL);
 
 	// options_add(&openweathermap->options, 0, "decimals", OPTION_HAS_VALUE, DEVICES_SETTING, JSON_NUMBER, (void *)2, "[0-9]");
-	options_add(&openweathermap->options, 0, "temperature-decimals", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)2, "[0-9]");
-	options_add(&openweathermap->options, 0, "humidity-decimals", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)2, "[0-9]");
-	options_add(&openweathermap->options, 0, "sunriseset-decimals", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)2, "[0-9]");
-	options_add(&openweathermap->options, 0, "show-humidity", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
-	options_add(&openweathermap->options, 0, "show-temperature", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
-	options_add(&openweathermap->options, 0, "show-sunriseset", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
-	options_add(&openweathermap->options, 0, "show-update", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
-	options_add(&openweathermap->options, 0, "poll-interval", OPTION_HAS_VALUE, DEVICES_SETTING, JSON_NUMBER, (void *)86400, "[0-9]");
+	options_add(&openweathermap->options, "0", "temperature-decimals", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)2, "[0-9]");
+	options_add(&openweathermap->options, "0", "humidity-decimals", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)2, "[0-9]");
+	options_add(&openweathermap->options, "0", "sunriseset-decimals", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)2, "[0-9]");
+	options_add(&openweathermap->options, "0", "show-humidity", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
+	options_add(&openweathermap->options, "0", "show-temperature", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
+	options_add(&openweathermap->options, "0", "show-sunriseset", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
+	options_add(&openweathermap->options, "0", "show-update", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
+	options_add(&openweathermap->options, "0", "poll-interval", OPTION_HAS_VALUE, DEVICES_SETTING, JSON_NUMBER, (void *)86400, "[0-9]");
 
 	openweathermap->createCode=&createCode;
 	// openweathermap->initDev=&initDev;
@@ -569,8 +569,8 @@ void openweathermapInit(void) {
 	openweathermap->gc=&gc;
 	openweathermap->printHelp=&printHelp;
 
-	eventpool_callback(REASON_DEVICE_ADDED, addDevice);
-	eventpool_callback(REASON_DEVICE_ADAPT, adaptDevice);
+	eventpool_callback(REASON_DEVICE_ADDED, addDevice, NULL);
+	eventpool_callback(REASON_DEVICE_ADAPT, adaptDevice, NULL);
 }
 
 #if defined(MODULE) && !defined(_WIN32)

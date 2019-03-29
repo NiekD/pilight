@@ -20,7 +20,7 @@
 #include "../libs/pilight/core/CuTest.h"
 #include "../libs/pilight/core/pilight.h"
 #include "../libs/pilight/core/eventpool.h"
-#include "../libs/pilight/lua/lua.h"
+#include "../libs/pilight/lua_c/lua.h"
 #include "../libs/pilight/protocols/protocol.h"
 #include "../libs/pilight/events/action.h"
 #include "../libs/pilight/protocols/generic/generic_switch.h"
@@ -54,7 +54,8 @@ static void test_event_actions_toggle_get_parameters(CuTest *tc) {
 	uv_replace_allocator(_MALLOC, _REALLOC, _CALLOC, _FREE);
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_toggle.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_toggle.json", CONFIG_SETTINGS));
@@ -101,7 +102,8 @@ static void test_event_actions_toggle_check_parameters(CuTest *tc) {
 	genericLabelInit();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_toggle.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_toggle.json", CONFIG_SETTINGS | CONFIG_DEVICES));
@@ -369,7 +371,7 @@ static void *reason_config_update_free(void *param) {
 	return NULL;
 }
 
-static void *control_device(int reason, void *param) {
+static void *control_device(int reason, void *param, void *userdata) {
 	struct reason_control_device_t *data1 = param;
 
 	steps++;
@@ -453,7 +455,8 @@ static void test_event_actions_toggle_run(CuTest *tc) {
 	genericLabelInit();
 
 	plua_init();
-	plua_coverage_output(__FUNCTION__);
+
+	test_set_plua_path(tc, __FILE__, "event_actions_toggle.c");
 
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("event_actions_toggle.json", CONFIG_SETTINGS | CONFIG_DEVICES));
@@ -466,7 +469,7 @@ static void test_event_actions_toggle_run(CuTest *tc) {
 	uv_timer_start(timer_req, (void (*)(uv_timer_t *))stop, 1000, 0);
 
 	eventpool_init(EVENTPOOL_NO_THREADS);
-	eventpool_callback(REASON_CONTROL_DEVICE, control_device);
+	eventpool_callback(REASON_CONTROL_DEVICE, control_device, NULL);
 
 	struct event_action_args_t *args = initialize_vars();
 	CuAssertIntEquals(tc, 0, event_action_check_arguments("toggle", args));

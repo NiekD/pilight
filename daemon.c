@@ -50,7 +50,7 @@
 #include "libs/pilight/core/ssdp.h"
 #include "libs/pilight/core/ntp.h"
 #include "libs/pilight/core/ssl.h"
-#include "libs/pilight/storage/storage.h"
+#include "libs/pilight/config/settings.h"
 
 #include "libs/pilight/core/mail.h"
 
@@ -84,7 +84,6 @@
 
 #ifndef _WIN32
 static char *pid_file;
-static unsigned short pid_file_free = 0;
 #endif
  
 static uv_signal_t **signal_req = NULL;
@@ -97,14 +96,12 @@ static int webserver_enable = WEBSERVER_ENABLE;
 static int webserver_http_port = WEBSERVER_HTTP_PORT;
 static int webserver_https_port = WEBSERVER_HTTPS_PORT;
 static char *webserver_root = NULL;
-static int webserver_root_free = 0;
 #endif
 
 static int active = 1;
 static int nodaemon = 0;
 static int main_loop = 1;
 static int verbosity = LOG_INFO;
-static pid_t pid = 0;
 static int sockfd = 0;
 static char *master_server = NULL;
 static unsigned short master_port = 0;
@@ -137,11 +134,11 @@ static void *reason_code_sent_free(void *param) {
 	return NULL;
 }
 
-static void *reason_send_code_free(void *param) {
-	struct reason_send_code_t *data = param;
-	FREE(data);
-	return NULL;
-}
+// static void *reason_send_code_free(void *param) {
+	// struct reason_send_code_t *data = param;
+	// FREE(data);
+	// return NULL;
+// }
 
 static void *reason_code_received_free(void *param) {
 	struct reason_code_received_t *data = param;
@@ -180,7 +177,7 @@ static void *reason_broadcast_core_free(void *param) {
 	return NULL;
 }
 
-static void *broadcast(int reason, void *param) {	
+static void *broadcast(int reason, void *param, void *userdata) {	
 	char /**threadid = NULL, */ *protocol = NULL, *origin = NULL;
 	char *message = NULL, *uuid = NULL, *settings = NULL, *conf = NULL;
 	char internal[1025];
@@ -399,7 +396,7 @@ static void receive_parse_code(int *raw, int rawlen, int plslen, int hwtype) {
 					logprintf(LOG_DEBUG, "caught minimum # of repeats %d of %s", protocol->repeats, protocol->id);
 					logprintf(LOG_DEBUG, "called %s parseRaw()", protocol->id);
 					memset(message, 0, 255);
-					protocol->parseCode(message);
+					// protocol->parseCode(message);
 					receiver_create_message(protocol, message);
 				}
 			}
@@ -410,7 +407,7 @@ static void receive_parse_code(int *raw, int rawlen, int plslen, int hwtype) {
 	return;
 }
 
-static void *receivePulseTrain(int reason, void *param) {
+static void *receivePulseTrain(int reason, void *param, void *userdata) {
 	struct reason_received_pulsetrain_t *data = param;
 	struct hardware_t *hw = NULL;
 	int plslen = 0;
@@ -427,7 +424,7 @@ static void *receivePulseTrain(int reason, void *param) {
 	return (void *)NULL;
 }
 
-static void *code_sent_success(int reason, void *param) {
+static void *code_sent_success(int reason, void *param, void *userdata) {
 	struct reason_code_sent_success_t *data = param;
 
 	logprintf(LOG_DEBUG, "successfully sent code %s from %s", data->message, data->uuid);
@@ -435,7 +432,7 @@ static void *code_sent_success(int reason, void *param) {
 	return NULL;
 }
 
-static void *code_sent_fail(int reason, void *param) {
+static void *code_sent_fail(int reason, void *param, void *userdata) {
 	struct reason_code_sent_fail_t *data = param;
 
 	logprintf(LOG_DEBUG, "failed to sent code %s from %s", data->message, data->uuid);
@@ -453,7 +450,7 @@ static void *code_sent_fail(int reason, void *param) {
 	// char settings[1025];
 	// char uuid[UUID_LENGTH+1];
 
-void *send_code(int reason, void *param) {
+void *send_code(int reason, void *param, void *userdata) {
 	struct reason_send_code_t *data = param;
 
 	struct reason_code_sent_t *data1 = NULL;
@@ -642,18 +639,18 @@ static int send_queue(struct JsonNode *json, enum origin_t origin) {
 			if(match == 1 && protocol->createCode != NULL) {
 				/* Let the protocol create his code */
 				memset(message, 0, 255);
-				if(protocol->createCode(jcode, message) == 0 && main_loop == 1) {
-					struct reason_send_code_t *data = MALLOC(sizeof(struct reason_send_code_t));
-					if(data == NULL) {
-						OUT_OF_MEMORY
-					}
-					data->origin = origin;
-					snprintf(data->message, 1024, "{\"message\":%s}", message);
-					data->rawlen = protocol->rawlen;
-					memcpy(data->pulses, protocol->raw, protocol->rawlen*sizeof(int));
-					data->txrpt = protocol->txrpt;
-					strncpy(data->protocol, protocol->id, 255);
-					data->hwtype = protocol->hwtype;
+				// if(protocol->createCode(jcode, message) == 0 && main_loop == 1) {
+					// struct reason_send_code_t *data = MALLOC(sizeof(struct reason_send_code_t));
+					// if(data == NULL) {
+						// OUT_OF_MEMORY
+					// }
+					// data->origin = origin;
+					// snprintf(data->message, 1024, "{\"message\":%s}", message);
+					// data->rawlen = protocol->rawlen;
+					// memcpy(data->pulses, protocol->raw, protocol->rawlen*sizeof(int));
+					// data->txrpt = protocol->txrpt;
+					// strncpy(data->protocol, protocol->id, 255);
+					// data->hwtype = protocol->hwtype;
 
 					/*struct JsonNode *jtmp = NULL;
 					char *stmp = NULL;
@@ -678,17 +675,17 @@ static int send_queue(struct JsonNode *json, enum origin_t origin) {
 					}
 					strncpy(&data->settings[x], "}", 1024-x);*/
 
-					if(uuid != NULL) {
-						strcpy(data->uuid, uuid);
-					} else {
-						memset(data->uuid, 0, UUID_LENGTH+1);
-					}
-					eventpool_trigger(REASON_SEND_CODE, reason_send_code_free, data);
+					// if(uuid != NULL) {
+						// strcpy(data->uuid, uuid);
+					// } else {
+						// memset(data->uuid, 0, UUID_LENGTH+1);
+					// }
+					// eventpool_trigger(REASON_SEND_CODE, reason_send_code_free, data);
 
-					return 0;
-				} else {
-					return -1;
-				}
+					// return 0;
+				// } else {
+					// return -1;
+				// }
 			}
 		} else {
 			return 0;
@@ -784,10 +781,10 @@ static int control_device(char *dev, char *state, struct JsonNode *values, enum 
 	return -1;
 }
 
-static void *control_device1(int reason, void *param) {
+static void *control_device1(int reason, void *param, void *userdata) {
 	struct reason_control_device_t *data = param;
 
-	control_device(data->dev, data->state, data->values, ORIGIN_ACTION);
+	control_device(data->dev, data->state, json_first_child(data->values), ORIGIN_ACTION);
 	return NULL;
 }
 
@@ -854,7 +851,7 @@ static void client_remove(int id) {
 	}
 }
 
-static void *socket_client_disconnected(int reason, void *param) {
+static void *socket_client_disconnected(int reason, void *param, void *userdata) {
 	struct reason_socket_disconnected_t *data = param;
 
 	if(data->fd > -1) {
@@ -955,9 +952,9 @@ static int socket_parse_responses(char *buffer, char *media, char **respons) {
 					struct JsonNode *value = NULL;
 					char *type = NULL;
 					char *key = NULL;
-					char *sval = NULL;
-					double nval = 0.0;
-					int dec = 0;
+					// char *sval = NULL;
+					// double nval = 0.0;
+					// int dec = 0;
 					if(json_find_string(json, "type", &type) != 0) {
 						logprintf(LOG_ERR, "client did not send a type of action");
 						json_delete(json);
@@ -981,47 +978,47 @@ static int socket_parse_responses(char *buffer, char *media, char **respons) {
 								json_delete(json);
 								return 0;
 							} else {
-								if(value->tag == JSON_NUMBER) {
-									if(registry_update(ORIGIN_MASTER, key, json_mknumber(value->number_, value->decimals_)) == 0) {
-										if((*respons = MALLOC(strlen("{\"status\":\"success\"}")+1)) == NULL) {
-											OUT_OF_MEMORY
-										}
-										strcpy(*respons, "{\"status\":\"success\"}");
-										json_delete(json);
-										return 0;
-									} else {
-										if((*respons = MALLOC(strlen("{\"status\":\"failed\"}")+1)) == NULL) {
-											OUT_OF_MEMORY
-										}
-										strcpy(*respons, "{\"status\":\"failed\"}");
-										json_delete(json);
-										return 0;
-									}
-								} else if(value->tag == JSON_STRING) {
-									if(registry_update(ORIGIN_MASTER, key, json_mkstring(value->string_)) == 0) {
-										if((*respons = MALLOC(strlen("{\"status\":\"success\"}")+1)) == NULL) {
-											OUT_OF_MEMORY
-										}
-										strcpy(*respons, "{\"status\":\"success\"}");
-										json_delete(json);
-										return 0;
-									} else {
-										if((*respons = MALLOC(strlen("{\"status\":\"failed\"}")+1)) == NULL) {
-											OUT_OF_MEMORY
-										}
-										strcpy(*respons, "{\"status\":\"failed\"}");
-										json_delete(json);
-										return 0;
-									}
-								} else {
-									logprintf(LOG_ERR, "registry value can only be a string or number");
-									if((*respons = MALLOC(strlen("{\"status\":\"failed\"}")+1)) == NULL) {
-										OUT_OF_MEMORY
-									}
-									strcpy(*respons, "{\"status\":\"failed\"}");
-									json_delete(json);
-									return 0;
-								}
+								// if(value->tag == JSON_NUMBER) {
+									// if(registry_update(ORIGIN_MASTER, key, json_mknumber(value->number_, value->decimals_)) == 0) {
+										// if((*respons = MALLOC(strlen("{\"status\":\"success\"}")+1)) == NULL) {
+											// OUT_OF_MEMORY
+										// }
+										// strcpy(*respons, "{\"status\":\"success\"}");
+										// json_delete(json);
+										// return 0;
+									// } else {
+										// if((*respons = MALLOC(strlen("{\"status\":\"failed\"}")+1)) == NULL) {
+											// OUT_OF_MEMORY
+										// }
+										// strcpy(*respons, "{\"status\":\"failed\"}");
+										// json_delete(json);
+										// return 0;
+									// }
+								// } else if(value->tag == JSON_STRING) {
+									// if(registry_update(ORIGIN_MASTER, key, json_mkstring(value->string_)) == 0) {
+										// if((*respons = MALLOC(strlen("{\"status\":\"success\"}")+1)) == NULL) {
+											// OUT_OF_MEMORY
+										// }
+										// strcpy(*respons, "{\"status\":\"success\"}");
+										// json_delete(json);
+										// return 0;
+									// } else {
+										// if((*respons = MALLOC(strlen("{\"status\":\"failed\"}")+1)) == NULL) {
+											// OUT_OF_MEMORY
+										// }
+										// strcpy(*respons, "{\"status\":\"failed\"}");
+										// json_delete(json);
+										// return 0;
+									// }
+								// } else {
+									// logprintf(LOG_ERR, "registry value can only be a string or number");
+									// if((*respons = MALLOC(strlen("{\"status\":\"failed\"}")+1)) == NULL) {
+										// OUT_OF_MEMORY
+									// }
+									// strcpy(*respons, "{\"status\":\"failed\"}");
+									// json_delete(json);
+									// return 0;
+								// }
 							}
 						} else if(strcmp(type, "remove") == 0) {
 							if(json_find_string(json, "key", &key) != 0) {
@@ -1033,22 +1030,22 @@ static int socket_parse_responses(char *buffer, char *media, char **respons) {
 								json_delete(json);
 								return 0;
 							} else {
-								if(registry_delete(ORIGIN_MASTER, key) == 0) {
-									if((*respons = MALLOC(strlen("{\"status\":\"success\"}")+1)) == NULL) {
-										OUT_OF_MEMORY
-									}
-									strcpy(*respons, "{\"status\":\"success\"}");
-									json_delete(json);
-									return 0;
-								} else {
-									logprintf(LOG_ERR, "registry value can only be a string or number");
-									if((*respons = MALLOC(strlen("{\"status\":\"failed\"}")+1)) == NULL) {
-										OUT_OF_MEMORY
-									}
-									strcpy(*respons, "{\"status\":\"failed\"}");
-									json_delete(json);
-									return 0;
-								}
+								// if(registry_delete(ORIGIN_MASTER, key) == 0) {
+									// if((*respons = MALLOC(strlen("{\"status\":\"success\"}")+1)) == NULL) {
+										// OUT_OF_MEMORY
+									// }
+									// strcpy(*respons, "{\"status\":\"success\"}");
+									// json_delete(json);
+									// return 0;
+								// } else {
+									// logprintf(LOG_ERR, "registry value can only be a string or number");
+									// if((*respons = MALLOC(strlen("{\"status\":\"failed\"}")+1)) == NULL) {
+										// OUT_OF_MEMORY
+									// }
+									// strcpy(*respons, "{\"status\":\"failed\"}");
+									// json_delete(json);
+									// return 0;
+								// }
 							}
 						} else if(strcmp(type, "get") == 0) {
 							if(json_find_string(json, "key", &key) != 0) {
@@ -1060,43 +1057,43 @@ static int socket_parse_responses(char *buffer, char *media, char **respons) {
 								json_delete(json);
 								return 0;
 							} else {
-								if(registry_select_number(ORIGIN_MASTER, key, &nval, &dec) == 0) {
-									struct JsonNode *jsend = json_mkobject();
-									json_append_member(jsend, "message", json_mkstring("registry"));
-									json_append_member(jsend, "value", json_mknumber(nval, dec));
-									json_append_member(jsend, "key", json_mkstring(key));
-									char *output = json_stringify(jsend, NULL);
-									if((*respons = MALLOC(strlen(output)+1)) == NULL) {
-										OUT_OF_MEMORY
-									}
-									strcpy(*respons, output);
-									json_free(output);
-									json_delete(jsend);
-									json_delete(json);
-									return 0;
-								} else if(registry_select_string(ORIGIN_MASTER, key, &sval) == 0) {
-									struct JsonNode *jsend = json_mkobject();
-									json_append_member(jsend, "message", json_mkstring("registry"));
-									json_append_member(jsend, "value", json_mkstring(sval));
-									json_append_member(jsend, "key", json_mkstring(key));
-									char *output = json_stringify(jsend, NULL);
-									if((*respons = MALLOC(strlen(output)+1)) == NULL) {
-										OUT_OF_MEMORY
-									}
-									strcpy(*respons, output);
-									json_free(output);
-									json_delete(jsend);
-									json_delete(json);
-									return 0;
-								} else {
-									logprintf(LOG_ERR, "registry key '%s' does not exist", key);
-									if((*respons = MALLOC(strlen("{\"status\":\"failed\"}")+1)) == NULL) {
-										OUT_OF_MEMORY
-									}
-									strcpy(*respons, "{\"status\":\"failed\"}");
-									json_delete(json);
-									return 0;
-								}
+								// if(registry_select_number(ORIGIN_MASTER, key, &nval, &dec) == 0) {
+									// struct JsonNode *jsend = json_mkobject();
+									// json_append_member(jsend, "message", json_mkstring("registry"));
+									// json_append_member(jsend, "value", json_mknumber(nval, dec));
+									// json_append_member(jsend, "key", json_mkstring(key));
+									// char *output = json_stringify(jsend, NULL);
+									// if((*respons = MALLOC(strlen(output)+1)) == NULL) {
+										// OUT_OF_MEMORY
+									// }
+									// strcpy(*respons, output);
+									// json_free(output);
+									// json_delete(jsend);
+									// json_delete(json);
+									// return 0;
+								// } else if(registry_select_string(ORIGIN_MASTER, key, &sval) == 0) {
+									// struct JsonNode *jsend = json_mkobject();
+									// json_append_member(jsend, "message", json_mkstring("registry"));
+									// json_append_member(jsend, "value", json_mkstring(sval));
+									// json_append_member(jsend, "key", json_mkstring(key));
+									// char *output = json_stringify(jsend, NULL);
+									// if((*respons = MALLOC(strlen(output)+1)) == NULL) {
+										// OUT_OF_MEMORY
+									// }
+									// strcpy(*respons, output);
+									// json_free(output);
+									// json_delete(jsend);
+									// json_delete(json);
+									// return 0;
+								// } else {
+									// logprintf(LOG_ERR, "registry key '%s' does not exist", key);
+									// if((*respons = MALLOC(strlen("{\"status\":\"failed\"}")+1)) == NULL) {
+										// OUT_OF_MEMORY
+									// }
+									// strcpy(*respons, "{\"status\":\"failed\"}");
+									// json_delete(json);
+									// return 0;
+								// }
 							}
 						}
 					}
@@ -1141,7 +1138,7 @@ static int socket_parse_responses(char *buffer, char *media, char **respons) {
 }
 
 /* Parse the incoming buffer from the client */
-static void *socket_parse_data(int reason, void *param) {
+static void *socket_parse_data(int reason, void *param, void *userdata) {
 	struct reason_socket_received_t *data = param;
 
 	struct sockaddr_in address;
@@ -1456,15 +1453,15 @@ static void pilight_abort(uv_timer_t *timer_req) {
 }
 
 void registerVersion(void) {
-	registry_delete(ORIGIN_MASTER, "pilight.version");
-	registry_update(ORIGIN_MASTER, "pilight.version.current", json_mkstring((char *)PILIGHT_VERSION));
+	// registry_delete(ORIGIN_MASTER, "pilight.version");
+	// registry_update(ORIGIN_MASTER, "pilight.version.current", json_mkstring((char *)PILIGHT_VERSION));
 }
 
 static void pilight_stats(uv_timer_t *timer_req) {
 	int watchdog = 1, stats = 1;
-	double itmp = 0.0;
-	if(settings_select_number(ORIGIN_MASTER, "watchdog-enable", &itmp) == 0) { watchdog = (int)itmp; }
-	if(settings_select_number(ORIGIN_MASTER, "stats-enable", &itmp) == 0) { stats = (int)itmp; }
+	int itmp = 0;
+	if(config_setting_get_number("watchdog-enable", 0, &itmp) == 0) { watchdog = itmp; }
+	if(config_setting_get_number("stats-enable", 0, &itmp) == 0) { stats = itmp; }
 
 	if(pilight.runmode == STANDALONE) {
 		registerVersion();
@@ -1555,7 +1552,12 @@ void main_gc(void) {
 	if(timer_abort_req != NULL) {
 		uv_timer_stop(timer_abort_req);
 	}
-	
+	if(webserver_root != NULL) {
+		FREE(webserver_root);
+	}
+	if(pid_file != NULL) {
+		FREE(pid_file);
+	}
 	FREE(progname);
 }
 
@@ -1605,17 +1607,17 @@ int start_pilight(int argc, char **argv) {
 	}
 	strcpy(fconfig, CONFIG_FILE);
 
-	options_add(&options, 'H', "help", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'V', "version", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'D', "nodaemon", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'C', "config", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'S', "server", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
-	options_add(&options, 'P', "port", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "[0-9]{1,4}");
-	options_add(&options, 258, "debuglevel", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "[012]{1}");
+	options_add(&options, "H", "help", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "V", "version", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "D", "nodaemon", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "C", "config", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "S", "server", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
+	options_add(&options, "P", "port", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "[0-9]{1,4}");
+	options_add(&options, "258", "debuglevel", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "[012]{1}");
 	// options_add(&options, 258, "memory-tracer", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
 
 	while(1) {
-		int c = options_parse(&options, argc, argv, 1, &args);
+		int c = options_parse1(&options, argc, argv, 1, &args, NULL);
 		if(c == -1) {
 			break;
 		}
@@ -1673,13 +1675,15 @@ int start_pilight(int argc, char **argv) {
 		printf("%s", help);
 #if defined(__arm__) || defined(__mips__)
 		printf("\n\tThe following GPIO platforms are supported:\n");
-		char *tmp = NULL;
-		int z = 0;
-		wiringXSetup("", _logprintf);
+		char **out = NULL;
+		int z = 0, i = wiringXSupportedPlatforms(&out);
+
 		printf("\t- none\n");
-		while((tmp = platform_iterate_name(z++)) != NULL) {
-			printf("\t- %s\n", tmp);
+		for(z=0;z<i;z++) {
+			printf("\t- %s\n", out[z]);
+			free(out[z]);
 		}
+		free(out);
 		printf("\n");
 #endif
 		goto clear;
@@ -1731,13 +1735,29 @@ int start_pilight(int argc, char **argv) {
 		log_shell_enable();
 	}
 
-	if((pid = isrunning("pilight-raw")) != -1) {
-		logprintf(LOG_NOTICE, "pilight-raw instance found (%d)", (int)pid);
+	int *ret = NULL, n = 0;
+	if((n = isrunning("pilight-daemon", &ret)) > 1) {
+		int i = 0;
+		for(i=0;i<n;i++) {
+			if(ret[i] != getpid()) {
+				log_shell_enable();
+				logprintf(LOG_NOTICE, "pilight-daemon is already running (%d)", ret[i]);
+				break;
+			}
+		}
+		FREE(ret);
 		goto clear;
 	}
 
-	if((pid = isrunning("pilight-debug")) != -1) {
-		logprintf(LOG_NOTICE, "pilight-debug instance found (%d)", (int)pid);
+	if((n = isrunning("pilight-debug", &ret)) > 0) {
+		logprintf(LOG_NOTICE, "pilight-debug instance found (%d)", ret[0]);
+		FREE(ret);
+		goto clear;
+	}
+
+	if((n = isrunning("pilight-raw", &ret)) > 0) {
+		logprintf(LOG_NOTICE, "pilight-raw instance found (%d)", ret[0]);
+		FREE(ret);
 		goto clear;
 	}
 
@@ -1754,27 +1774,25 @@ int start_pilight(int argc, char **argv) {
 
 	// registerVersion();
 
-	eventpool_callback(REASON_SEND_CODE, send_code);
-	eventpool_callback(REASON_SOCKET_RECEIVED, socket_parse_data);
-	eventpool_callback(REASON_SOCKET_DISCONNECTED, socket_client_disconnected);
-	eventpool_callback(REASON_RECEIVED_PULSETRAIN, receivePulseTrain);
-	eventpool_callback(REASON_CODE_RECEIVED, broadcast);	
-	eventpool_callback(REASON_CODE_SENT, broadcast);
-	eventpool_callback(REASON_CODE_SEND_SUCCESS, code_sent_success);
-	eventpool_callback(REASON_CODE_SEND_FAIL, code_sent_fail);
-	eventpool_callback(REASON_CONTROL_DEVICE, control_device1);
+	eventpool_callback(REASON_SEND_CODE, send_code, NULL);
+	eventpool_callback(REASON_SOCKET_RECEIVED, socket_parse_data, NULL);
+	eventpool_callback(REASON_SOCKET_DISCONNECTED, socket_client_disconnected, NULL);
+	eventpool_callback(REASON_RECEIVED_PULSETRAIN, receivePulseTrain, NULL);
+	eventpool_callback(REASON_CODE_RECEIVED, broadcast, NULL);
+	eventpool_callback(REASON_CODE_SENT, broadcast, NULL);
+	eventpool_callback(REASON_CODE_SEND_SUCCESS, code_sent_success, NULL);
+	eventpool_callback(REASON_CODE_SEND_FAIL, code_sent_fail, NULL);
+	eventpool_callback(REASON_CONTROL_DEVICE, control_device1, NULL);
 
 #ifdef WEBSERVER
 	{
 	#ifdef WEBSERVER_HTTPS
 		char *pemfile = NULL;
-		int pem_free = 0;
-		if(settings_select_string(ORIGIN_MASTER, "pem-file", &pemfile) != 0) {
+		if(config_setting_get_string("pem-file", 0, &pemfile) != 0) {
 			if((pemfile = REALLOC(pemfile, strlen(PEM_FILE)+1)) == NULL) {
 				OUT_OF_MEMORY
 			}
 			strcpy(pemfile, PEM_FILE);
-			pem_free = 1;
 		}
 
 		char *content = NULL;
@@ -1784,7 +1802,7 @@ int start_pilight(int argc, char **argv) {
 		char *p = (char *)md5sum;
 		if(file_exists(pemfile) != 0) {
 			logprintf(LOG_ERR, "missing webserver SSL private key %s", pemfile);
-			if(pem_free == 1) {
+			if(pemfile != NULL) {
 				FREE(pemfile);
 			}
 			goto clear;
@@ -1794,30 +1812,29 @@ int start_pilight(int argc, char **argv) {
 			for(i = 0; i < 32; i+=2) {
 				sprintf(&md5conv[i], "%02x", md5sum[i/2] );
 			}
-			if(strcmp(md5conv, PILIGHT_PEM_MD5) == 0) {
-				registry_update(ORIGIN_MASTER, "webserver.ssl.certificate.secure", json_mknumber(0, 0));
-			} else {
-				registry_update(ORIGIN_MASTER, "webserver.ssl.certificate.secure", json_mknumber(1, 0));
-			}
-			registry_update(ORIGIN_MASTER, "webserver.ssl.certificate.location", json_mkstring(pemfile));
+			// if(strcmp(md5conv, PILIGHT_PEM_MD5) == 0) {
+				// registry_update(ORIGIN_MASTER, "webserver.ssl.certificate.secure", json_mknumber(0, 0));
+			// } else {
+				// registry_update(ORIGIN_MASTER, "webserver.ssl.certificate.secure", json_mknumber(1, 0));
+			// }
+			// registry_update(ORIGIN_MASTER, "webserver.ssl.certificate.location", json_mkstring(pemfile));
 			FREE(content);
 		}
 
-		if(pem_free == 1) {
+		if(pemfile != NULL) {
 			FREE(pemfile);
 		}
 	#endif
 
-		double itmp = 0;
-		if(settings_select_number(ORIGIN_MASTER, "webserver-enable", &itmp) == 0) { webserver_enable = (int)itmp; }
-		if(settings_select_number(ORIGIN_MASTER, "webserver-http-port", &itmp) == 0) { webserver_http_port = (int)itmp; }
-		if(settings_select_number(ORIGIN_MASTER, "webserver-https-port", &itmp) == 0) { webserver_https_port = (int)itmp; }
-		if(settings_select_string(ORIGIN_MASTER, "webserver-root", &webserver_root) != 0) {
+		int itmp = 0;
+		if(config_setting_get_number("webserver-enable", 0, &itmp) == 0) { webserver_enable = itmp; }
+		if(config_setting_get_number("webserver-http-port", 0, &itmp) == 0) { webserver_http_port = itmp; }
+		if(config_setting_get_number("webserver-https-port", 0, &itmp) == 0) { webserver_https_port = itmp; }
+		if(config_setting_get_string("webserver-root", 0, &webserver_root) != 0) {
 			if((webserver_root = REALLOC(webserver_root, strlen(WEBSERVER_ROOT)+1)) == NULL) {
 				OUT_OF_MEMORY
 			}
 			strcpy(webserver_root, WEBSERVER_ROOT);
-			webserver_root_free = 1;
 		}
 	}
 #endif
@@ -1825,13 +1842,12 @@ int start_pilight(int argc, char **argv) {
 #ifndef _WIN32
 	{
 		char buffer[BUFFER_SIZE];
-		int f = 0;
-		if(settings_select_string(ORIGIN_MASTER, "pid-file", &pid_file) != 0) {
+		int f = 0, pid = 0;
+		if(config_setting_get_string("pid-file", 0, &pid_file) != 0) {
 			if((pid_file = REALLOC(pid_file, strlen(PID_FILE)+1)) == NULL) {
 				OUT_OF_MEMORY
 			}
 			strcpy(pid_file, PID_FILE);
-			pid_file_free = 1;
 		}
 
 		if((f = open(pid_file, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR)) != -1) {
@@ -1855,20 +1871,29 @@ int start_pilight(int argc, char **argv) {
 			goto clear;
 		}
 		close(f);
+
+		if(active == 1) {
+			nodaemon = 1;
+			logprintf(LOG_NOTICE, "already active (pid %d)", pid);
+			log_level_set(LOG_NOTICE);
+			log_shell_disable();
+			goto clear;
+		}
 	}
 #endif
 
 	{
-		double itmp = 0.0;
+		int itmp = 0.0;
 		char *stmp = NULL;
-		if(settings_select_number(ORIGIN_MASTER, "log-level", &itmp) == 0) {
-			log_level_set((int)itmp);
+		if(config_setting_get_number("log-level", 0, &itmp) == 0) {
+			log_level_set(itmp);
 		}
 
-		if(settings_select_string(ORIGIN_MASTER, "log-file", &stmp) == 0) {
+		if(config_setting_get_string("log-file", 0, &stmp) == 0) {
 			if(log_file_set(stmp) == EXIT_FAILURE) {
 				goto clear;
 			}
+			FREE(stmp);
 		}
 	}
 
@@ -1888,16 +1913,6 @@ int start_pilight(int argc, char **argv) {
 			log_level_set(LOG_ERR);
 		}
 	}
-
-#ifndef _WIN32
-	if(active == 1) {
-		nodaemon = 1;
-		logprintf(LOG_NOTICE, "already active (pid %d)", pid);
-		log_level_set(LOG_NOTICE);
-		log_shell_disable();
-		goto clear;
-	}
-#endif
 
 	struct JsonNode *jrespond = NULL;
 	struct JsonNode *jchilds = NULL;
@@ -1939,10 +1954,10 @@ int start_pilight(int argc, char **argv) {
 	}
 
 	{
-		double itmp = 0.0;
+		int itmp = 0.0;
 		int port = 0, standalone = 0;
-		if(settings_select_number(ORIGIN_MASTER, "port", &itmp) == 0) { port = (int)itmp; }
-		if(settings_select_number(ORIGIN_MASTER, "standalone", &itmp) == 0) { standalone = (int)itmp; }
+		if(config_setting_get_number("port", 0, &itmp) == 0) { port = itmp; }
+		if(config_setting_get_number("standalone", 0, &itmp) == 0) { standalone = itmp; }
 
 		pilight.runmode = STANDALONE;
 		if(standalone == 0 || (master_server != NULL && master_port > 0)) {
@@ -2001,12 +2016,14 @@ int start_pilight(int argc, char **argv) {
 
 	{
 		char *servers = NULL;
-		if(settings_select_string_element(ORIGIN_MASTER, "ntp-servers", 0, &servers) == 0) {
+		if(config_setting_get_string("ntp-servers", 0, &servers) == 0) {
+			FREE(servers);
 			int x = 0;
-			while(settings_select_string_element(ORIGIN_MASTER, "ntp-servers", x, &servers) == 0) {
+			while(config_setting_get_string("ntp-servers", x, &servers) == 0) {
 				strcpy(ntp_servers.server[x].host, servers);
 				ntp_servers.server[x].port = 123;
 				x++;
+				FREE(servers);
 			}
 			ntp_servers.nrservers = x;
 			ntp_servers.callback = NULL;
@@ -2015,11 +2032,11 @@ int start_pilight(int argc, char **argv) {
 	}
 
 	{
-		double itmp = 0;
+		int itmp = 0;
 		int watchdog = 1, stats = 1;
 
-		if(settings_select_number(ORIGIN_MASTER, "watchdog-enable", &itmp) == 0) { watchdog = (int)itmp; }
-		if(settings_select_number(ORIGIN_MASTER, "stats-enable", &itmp) == 0) { stats = (int)itmp; }
+		if(config_setting_get_number("watchdog-enable", 0, &itmp) == 0) { watchdog = itmp; }
+		if(config_setting_get_number("stats-enable", 0, &itmp) == 0) { stats = itmp; }
 
 		if(watchdog == 1 && stats == 1) {
 			timer_abort_req = MALLOC(sizeof(uv_timer_t));

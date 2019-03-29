@@ -235,7 +235,7 @@ static void *thread(void *param) {
 	return (void *)NULL;
 }
 
-static void *adaptDevice(int reason, void *param) {
+static void *adaptDevice(int reason, void *param, void *userdata) {
 	struct JsonNode *jdevice = NULL;
 	struct JsonNode *jtime = NULL;
 
@@ -260,7 +260,7 @@ static void *adaptDevice(int reason, void *param) {
 	return NULL;
 }
 
-static void *addDevice(int reason, void *param) {
+static void *addDevice(int reason, void *param, void *userdata) {
 	struct JsonNode *jdevice = NULL;
 	struct JsonNode *jprotocols = NULL;
 	struct JsonNode *jid = NULL;
@@ -381,22 +381,22 @@ void sunRiseSetInit(void) {
 	sunriseset->multipleId = 0;
 	sunriseset->masterOnly = 1;
 
-	options_add(&sunriseset->options, 'o', "longitude", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, NULL);
-	options_add(&sunriseset->options, 'a', "latitude", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, NULL);
-	options_add(&sunriseset->options, 'u', "sunrise", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{3,4}$");
-	options_add(&sunriseset->options, 'd', "sunset", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{3,4}$");
-	options_add(&sunriseset->options, 's', "sun", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
+	options_add(&sunriseset->options, "o", "longitude", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, NULL);
+	options_add(&sunriseset->options, "a", "latitude", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, NULL);
+	options_add(&sunriseset->options, "u", "sunrise", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{3,4}$");
+	options_add(&sunriseset->options, "d", "sunset", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{3,4}$");
+	options_add(&sunriseset->options, "s", "sun", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
 
 	// options_add(&sunriseset->options, 0, "decimals", OPTION_HAS_VALUE, DEVICES_SETTING, JSON_NUMBER, (void *)2, "[0-9]");
-	options_add(&sunriseset->options, 0, "sunriseset-decimals", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)2, "[0-9]");
-	options_add(&sunriseset->options, 0, "show-sunriseset", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
+	options_add(&sunriseset->options, "0", "sunriseset-decimals", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)2, "[0-9]");
+	options_add(&sunriseset->options, "0", "show-sunriseset", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
 
 	// sunriseset->initDev=&initDev;
 	sunriseset->gc=&gc;
 	sunriseset->checkValues=&checkValues;
 
-	eventpool_callback(REASON_DEVICE_ADDED, addDevice);
-	eventpool_callback(REASON_DEVICE_ADAPT, adaptDevice);
+	eventpool_callback(REASON_DEVICE_ADDED, addDevice, NULL);
+	eventpool_callback(REASON_DEVICE_ADAPT, adaptDevice, NULL);
 }
 
 #if defined(MODULE) && !defined(_WIN32)

@@ -252,7 +252,7 @@ static void *timer_cb(uv_timer_t *timer_req) {
 	return NULL;
 }
 
-static void *addDevice(int reason, void *param) {
+static void *addDevice(int reason, void *param, void *userdata) {
 	struct JsonNode *jdevice = NULL;
 	struct JsonNode *jprotocols = NULL;
 	struct JsonNode *jid = NULL;
@@ -402,18 +402,18 @@ void xbmcInit(void) {
 	xbmc->hwtype = API;
 	xbmc->multipleId = 0;
 
-	options_add(&xbmc->options, 'a', "action", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
-	options_add(&xbmc->options, 'm', "media", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
-	options_add(&xbmc->options, 's', "server", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, NULL);
-	options_add(&xbmc->options, 'p', "port", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, NULL);
+	options_add(&xbmc->options, "a", "action", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
+	options_add(&xbmc->options, "m", "media", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, NULL);
+	options_add(&xbmc->options, "s", "server", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, NULL);
+	options_add(&xbmc->options, "p", "port", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, NULL);
 
-	options_add(&xbmc->options, 0, "show-media", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
-	options_add(&xbmc->options, 0, "show-action", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
+	options_add(&xbmc->options, "0", "show-media", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
+	options_add(&xbmc->options, "0", "show-action", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
 
 	xbmc->gc=&gc;
 	xbmc->checkValues=&checkValues;
 
-	eventpool_callback(REASON_DEVICE_ADDED, addDevice);
+	eventpool_callback(REASON_DEVICE_ADDED, addDevice, NULL);
 }
 
 #if defined(MODULE) && !defined(_WIN32)

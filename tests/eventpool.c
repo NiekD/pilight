@@ -34,6 +34,8 @@ static int check = 0;
 static int i = 0;
 static int x = 0;
 static int y = 0;
+static void *foo = NULL;
+static struct eventpool_listener_t *node[2] = { NULL };
 
 static void close_cb(uv_handle_t *handle) {
 	FREE(handle);
@@ -44,9 +46,13 @@ static void *done(void *param) {
 	return NULL;
 }
 
-static void *listener1(int reason, void *param) {
+static void *listener1(int reason, void *param, void *userdata) {
 	CuAssertPtrNotNull(gtc, param);
 	struct data_t *data = param;
+
+	if(reason == 1) {
+		CuAssertTrue(gtc, userdata == foo);
+	}
 	CuAssertTrue(gtc, (data->a >= 0 && data->a <= 5));
 #ifdef _WIN32
 	InterlockedIncrement(&check);
@@ -59,7 +65,7 @@ static void *listener1(int reason, void *param) {
 	return NULL;
 }
 
-static void *listener2(int reason, void *param) {
+static void *listener2(int reason, void *param, void *userdata) {
 	CuAssertPtrNotNull(gtc, param);
 	struct data_t *data = param;
 	CuAssertIntEquals(gtc, 4, data->a);
@@ -72,7 +78,7 @@ static void *listener2(int reason, void *param) {
 	return NULL;
 }
 
-static void *listener3(int reason, void *param) {
+static void *listener3(int reason, void *param, void *userdata) {
 	CuAssertPtrNotNull(gtc, param);
 	struct data_t *data = param;
 	CuAssertIntEquals(gtc, 5, data->a);
@@ -88,6 +94,10 @@ static void *listener3(int reason, void *param) {
 #else
 	__sync_add_and_fetch(&check, 1);
 #endif
+
+	eventpool_callback_remove(node[0]);
+	eventpool_callback_remove(node[1]);
+	eventpool_trigger(2, NULL, NULL);
 
 	return NULL;
 }
@@ -150,13 +160,15 @@ static void test_callback(CuTest *tc) {
 	}
 	uv_async_init(uv_default_loop(), async_close_req, async_close_cb);
 
+	foo = MALLOC(0);
+	CuAssertPtrNotNull(tc, foo);
 	eventpool_init(threads);
-	eventpool_callback(1, listener1);
+	eventpool_callback(1, listener1, foo);
 
-	eventpool_callback(2, listener1);
-	eventpool_callback(2, listener2);
+	node[0] = eventpool_callback(2, listener1, NULL);
+	node[1] = eventpool_callback(2, listener2, NULL);
 
-	eventpool_callback(3, listener3);
+	eventpool_callback(3, listener3, NULL);
 
 	// pthread_create(&pth, NULL, loop, NULL);
 	uv_thread_create(&pth, loop, NULL);
@@ -172,7 +184,8 @@ static void test_callback(CuTest *tc) {
 	uv_thread_join(&pth);
 
 	eventpool_gc();
-	
+	FREE(foo);
+
 	CuAssertIntEquals(tc, 8, check);
 	CuAssertIntEquals(tc, 0, xfree());
 

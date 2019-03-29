@@ -63,7 +63,7 @@ static void *reason_code_received_free(void *param) {
 	return NULL;
 }
 
-static void *arp_event(int reason, void *param) {
+static void *arp_event(int reason, void *param, void *userdata) {
 	struct reason_arp_device_t *data1 = param;
 
 	struct data_t *tmp = data;
@@ -94,7 +94,7 @@ static void *arp_event(int reason, void *param) {
 	return NULL;
 }
 
-static void *addDevice(int reason, void *param) {
+static void *addDevice(int reason, void *param, void *userdata) {
 	struct JsonNode *jdevice = NULL;
 	struct JsonNode *jprotocols = NULL;
 	struct JsonNode *jid = NULL;
@@ -192,18 +192,18 @@ void arpingInit(void) {
 	arping->multipleId = 0;
 	arping->masterOnly = 1;
 
-	options_add(&arping->options, 'c', "connected", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
-	options_add(&arping->options, 'd', "disconnected", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
-	options_add(&arping->options, 'm', "mac", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "^[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}$");
-	options_add(&arping->options, 'i', "ip", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
+	options_add(&arping->options, "c", "connected", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
+	options_add(&arping->options, "d", "disconnected", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
+	options_add(&arping->options, "m", "mac", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "^[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}$");
+	options_add(&arping->options, "i", "ip", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_STRING, NULL, "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
 
 	arping->gc=&gc;
 
-	eventpool_callback(REASON_DEVICE_ADDED, addDevice);
+	eventpool_callback(REASON_DEVICE_ADDED, addDevice, NULL);
 
-	eventpool_callback(REASON_ARP_FOUND_DEVICE, arp_event);
-	eventpool_callback(REASON_ARP_CHANGED_DEVICE, arp_event);
-	eventpool_callback(REASON_ARP_LOST_DEVICE, arp_event);
+	eventpool_callback(REASON_ARP_FOUND_DEVICE, arp_event, NULL);
+	eventpool_callback(REASON_ARP_CHANGED_DEVICE, arp_event, NULL);
+	eventpool_callback(REASON_ARP_LOST_DEVICE, arp_event, NULL);
 }
 
 #if defined(MODULE) && !defined(_WIN32)

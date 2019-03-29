@@ -168,7 +168,7 @@ close:
 	kill(getpid(), SIGINT);
 }
 
-static void *socket_disconnected(int reason, void *param) {
+static void *socket_disconnected(int reason, void *param, void *userdata) {
 	struct reason_socket_disconnected_t *data = param;
 
 	socket_close(data->fd);
@@ -177,7 +177,7 @@ static void *socket_disconnected(int reason, void *param) {
 	return NULL;
 }
 
-static void *socket_connected(int reason, void *param) {
+static void *socket_connected(int reason, void *param, void *userdata) {
 	struct reason_socket_connected_t *data = param;
 
 	connected = 1;
@@ -221,7 +221,7 @@ static int select_server(int server) {
 	return -1;
 }
 
-static void *ssdp_found(int reason, void *param) {
+static void *ssdp_found(int reason, void *param, void *userdata) {
 	struct reason_ssdp_received_t *data = param;
 	struct ssdp_list_t *node = NULL;
 	int match = 0;
@@ -391,19 +391,19 @@ int main(int argc, char **argv) {
 
 	struct protocol_t *protocol = NULL;
 
-	options_add(&options, 'H', "help", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'V', "version", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'p', "protocol", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'S', "server", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
-	options_add(&options, 'P', "port", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "[0-9]{1,4}");
-	options_add(&options, 'I', "instance", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'U', "uuid", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "[a-zA-Z0-9]{4}-[a-zA-Z0-9]{2}-[a-zA-Z0-9]{2}-[a-zA-Z0-9]{2}-[a-zA-Z0-9]{6}");
+	options_add(&options, "H", "help", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "V", "version", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "p", "protocol", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "S", "server", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
+	options_add(&options, "P", "port", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "[0-9]{1,4}");
+	options_add(&options, "I", "instance", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "U", "uuid", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, "[a-zA-Z0-9]{4}-[a-zA-Z0-9]{2}-[a-zA-Z0-9]{2}-[a-zA-Z0-9]{2}-[a-zA-Z0-9]{6}");
 
 	/* Get the protocol to be used */
 	int loop = 1;
 	while(loop) {
 		int c;
-		c = options_parse(&options, argc, argv, 0, &args);
+		c = options_parse1(&options, argc, argv, 1, &args, NULL);
 
 		if(c == -1)
 			break;
@@ -493,7 +493,7 @@ int main(int argc, char **argv) {
 	   fill all necessary values in the options struct */
 	while(1) {
 		int c;
-		c = options_parse(&options, argc, argv, 2, &args);
+		c = options_parse1(&options, argc, argv, 1, &args, NULL);
 
 		if(c == -1)
 			break;
@@ -578,14 +578,14 @@ int main(int argc, char **argv) {
 	}
 
 	code = json_mkobject();
-	int itmp = 0;
+	char *itmp = NULL;
 	/* Check if we got sufficient arguments from this protocol */
 	struct options_t *tmp = options;
 	while(tmp) {
 		if(strlen(tmp->name) > 0) {
 			/* Only send the CLI arguments that belong to this protocol, the protocol name
 			and those that are called by the user */
-			if((options_get_id(&protocol->options, tmp->name, &itmp) == 0)
+			if((options_get_id(protocol->options, tmp->name, &itmp) == 0)
 			    && tmp->vartype == JSON_STRING && tmp->string_ != NULL
 				&& (strlen(tmp->string_) > 0)) {
 				if(isNumeric(tmp->string_) == 0) {
@@ -604,9 +604,9 @@ int main(int argc, char **argv) {
 	}
 
 	eventpool_init(EVENTPOOL_NO_THREADS);
-	eventpool_callback(REASON_SSDP_RECEIVED, ssdp_found);
-	eventpool_callback(REASON_SOCKET_CONNECTED, socket_connected);
-	eventpool_callback(REASON_SOCKET_DISCONNECTED, socket_disconnected);
+	eventpool_callback(REASON_SSDP_RECEIVED, ssdp_found, NULL);
+	eventpool_callback(REASON_SOCKET_CONNECTED, socket_connected, NULL);
+	eventpool_callback(REASON_SOCKET_DISCONNECTED, socket_disconnected, NULL);
 
 	memset(raw, 0, MAXPULSESTREAMLENGTH-1);
 	protocol->raw = raw;

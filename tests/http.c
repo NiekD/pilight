@@ -21,6 +21,7 @@
 #include "../libs/pilight/core/webserver.h"
 #include "../libs/pilight/core/log.h"
 #include "../libs/pilight/core/ssl.h"
+#include "../libs/pilight/lua_c/lua.h"
 
 #include "alltests.h"
 
@@ -83,6 +84,18 @@ static struct tests_t {
 				"Connection: close\r\n"
 				"Content-Type: %s\r\n\r\n"
 				"%s"
+	},
+	{ "header 301", GET, "http://127.0.0.1:10080/", 10080, 0, 0, 301, 23, NULL, "http://raspi4/nodeMcu2/", NULL,
+			"GET / HTTP/1.1\r\n"
+				"Host: 127.0.0.1\r\n"
+				"User-Agent: pilight\r\n"
+				"Connection: close\r\n\r\n",
+			"HTTP/1.0 301 Moved Permanently\r\n"
+			"Location: http://raspi4/nodeMcu2/\r\n"
+			"Content-Length: 0\r\n"
+			"Connection: close\r\n"
+			"Date: Sat, 11 Aug 2018 11:15:15 GMT\r\n"
+			"Server: lighttpd/1.4.35\r\n\r\n"
 	},
 	// Content-Length is actually 12 bytes
 	{ "too big content-length", GET, "http://127.0.0.1:10080/", 10080, 0, 1, 408, 0, NULL, NULL, "",
@@ -172,9 +185,9 @@ static struct tests_t {
 		"HTTP/1.1 200 OK\r\n"
 			"Keep-Alive: timeout=15, max=100\r\n"
 			"Transfer-Encoding: chunked\r\n\r\n"
-			"1E\r\n"
+			"0000001E\r\n"
 			"123456789012345678901234567890\r\n"
-			"0\r\n\r\n"
+			"00000000\r\n\r\n"
 	},
 	{ "multiple chunked get", GET, "http://127.0.0.1:10080/test.jpg", 10080, 0, 0, 200, 49, NULL, "1234567890123456789012345678901234567890123456789", "",
 		"GET /test.jpg HTTP/1.1\r\n"
@@ -604,7 +617,7 @@ static void test(void *param) {
 	is_ssl = 0;
 	doquit = 0;
 
-	if(testnr != 16) {
+	if(testnr != 17) {
 		http_start(tests[testnr].url, tests[testnr].port);
 		uv_thread_create(&pth, http_wait, NULL);
 	}
@@ -636,6 +649,10 @@ static void test_http(CuTest *tc) {
 
 	uv_replace_allocator(_MALLOC, _REALLOC, _CALLOC, _FREE);
 
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "http.c");
+
 	eventpool_init(EVENTPOOL_NO_THREADS);
 	storage_init();
 	CuAssertIntEquals(tc, 0, storage_read("http.json", CONFIG_SETTINGS));
@@ -653,6 +670,7 @@ static void test_http(CuTest *tc) {
 		uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 	}
 
+	plua_gc();
 	http_gc();
 	ssl_gc();
 	storage_gc();
@@ -660,7 +678,7 @@ static void test_http(CuTest *tc) {
 
 	FREE(_userdata);
 
-	CuAssertIntEquals(tc, 17, testnr);
+	CuAssertIntEquals(tc, 18, testnr);
 	CuAssertIntEquals(tc, 0, xfree());
 
 }
@@ -680,6 +698,10 @@ static void test_http_threaded(CuTest *tc) {
 	CuAssertPtrNotNull(tc, _userdata);
 
 	uv_replace_allocator(_MALLOC, _REALLOC, _CALLOC, _FREE);
+
+	plua_init();
+
+	test_set_plua_path(tc, __FILE__, "http.c");
 
 	eventpool_init(EVENTPOOL_NO_THREADS);
 	storage_init();
@@ -714,13 +736,14 @@ static void test_http_threaded(CuTest *tc) {
 		}
 	}
 
+	plua_gc();
 	http_gc();
 	ssl_gc();
 	storage_gc();
 	eventpool_gc();
 
 	FREE(_userdata);
-	CuAssertIntEquals(tc, 17, testnr);
+	CuAssertIntEquals(tc, 18, testnr);
 	CuAssertIntEquals(tc, 0, xfree());
 }
 

@@ -83,7 +83,7 @@ static void thread(uv_work_t *req) {
 	return;
 }
 
-static void *addDevice(int reason, void *param) {
+static void *addDevice(int reason, void *param, void *userdata) {
 	struct JsonNode *jdevice = NULL;
 	struct JsonNode *jprotocols = NULL;
 	struct JsonNode *jid = NULL;
@@ -207,17 +207,17 @@ void lm76Init(void) {
 	lm76->hwtype = SENSOR;
 	lm76->multipleId = 0;
 
-	options_add(&lm76->options, 't', "temperature", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{1,3}$");
-	options_add(&lm76->options, 'i', "id", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "0x[0-9a-f]{2}");
-	options_add(&lm76->options, 'd', "i2c-path", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "^/dev/i2c-[0-9]{1,2}%");
+	options_add(&lm76->options, "t", "temperature", OPTION_HAS_VALUE, DEVICES_VALUE, JSON_NUMBER, NULL, "^[0-9]{1,3}$");
+	options_add(&lm76->options, "i", "id", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "0x[0-9a-f]{2}");
+	options_add(&lm76->options, "d", "i2c-path", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "^/dev/i2c-[0-9]{1,2}%");
 
-	options_add(&lm76->options, 0, "temperature-decimals", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)3, "[0-9]");
-	options_add(&lm76->options, 0, "show-temperature", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
+	options_add(&lm76->options, "0", "temperature-decimals", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)3, "[0-9]");
+	options_add(&lm76->options, "0", "show-temperature", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
 
 #if !defined(__FreeBSD__) && !defined(_WIN32) && !defined(__sun)
 	lm76->gc=&gc;
 
-	eventpool_callback(REASON_DEVICE_ADDED, addDevice);
+	eventpool_callback(REASON_DEVICE_ADDED, addDevice, NULL);
 #endif
 }
 

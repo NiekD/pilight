@@ -45,12 +45,12 @@ int gettimeofday(struct timeval *tp, struct timezone *tzp);
 int check_instances(const wchar_t *prog);
 int setenv(const char *name, const char *value, int overwrite);
 int unsetenv(const char *name);
-int isrunning(const char *program);
+int isrunning(const char *program, int **ret);
 #endif
 
 int getnrcpu(void);
 void array_free(char ***array, int len);
-int isrunning(const char *program);
+int isrunning(const char *program, int **ret);
 void atomicinit(void);
 void atomiclock(void);
 void atomicunlock(void);
@@ -86,6 +86,7 @@ int str_replace(char *search, char *replace, char **str);
 int stricmp(char const *a, char const *b);
 int strnicmp(char const *a, char const *b, size_t len);
 #endif
+void strtolower(char **a);
 int file_get_contents(char *file, char **content);
 void calc_time_interval(int type, int seconds, int diff, struct timeval *tv);
 char *_dirname(char *path);

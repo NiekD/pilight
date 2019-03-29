@@ -85,12 +85,16 @@ static void test_isrunning(CuTest *tc) {
 
 	memtrack();
 
-	int n = 0;
-	n = isrunning("pilight-unittest");
+	int n = 0, *ret = NULL;
+	n = isrunning("pilight-unittest", &ret);
 	CuAssertTrue(tc, n > 0);
+	CuAssertPtrNotNull(tc, ret);
+	FREE(ret);
+	ret = NULL;
 
-	n = isrunning("foo");
-	CuAssertIntEquals(tc, -1, n);
+	n = isrunning("foo", &ret);
+	CuAssertIntEquals(tc, 0, n);
+	CuAssertPtrEquals(tc, ret, NULL);
 
 	CuAssertIntEquals(tc, 0, xfree());
 }
@@ -498,8 +502,9 @@ static void test_str_replace(CuTest *tc) {
 
 	memtrack();
 
-	char str[255], *p = str;
+	char *str = MALLOC(255), *p = str;
 	int n = 0;
+	CuAssertPtrNotNull(tc, str);
 
 	strcpy(str, "HelloWorld");
 	n = str_replace("o", "a", &p);
@@ -511,6 +516,17 @@ static void test_str_replace(CuTest *tc) {
 	CuAssertIntEquals(tc, 19, n);
 	CuAssertStrEquals(tc, "<body text='black'>", str);
 
+	strcpy(str, "Apple");
+	n = str_replace("Apple", "Pineapple", &p);
+	CuAssertIntEquals(tc, 9, n);
+	CuAssertStrEquals(tc, "Pineapple", str);
+
+	strcpy(str, "My fruit");
+	n = str_replace("fruit", "raspberry", &p);
+	CuAssertIntEquals(tc, 12, n);
+	CuAssertStrEquals(tc, "My raspberry", str);
+
+	FREE(str);
 	CuAssertIntEquals(tc, 0, xfree());
 }
 
@@ -561,6 +577,47 @@ static void test_strnicmp(CuTest *tc) {
 
 	n = strnicmp("Hello World!", "hELLO wO", 8);
 	CuAssertIntEquals(tc, 0, n);
+
+	CuAssertIntEquals(tc, 0, xfree());
+}
+
+static void test_strtolower(CuTest *tc) {
+	printf("[ %-48s ]\n", __FUNCTION__);
+	fflush(stdout);
+
+	memtrack();
+
+	{
+		char *a = STRDUP("A");
+		CuAssertPtrNotNull(tc, a);
+		strtolower(&a);
+		CuAssertStrEquals(tc, "a", a);
+		FREE(a);
+	}
+
+	{
+		char *a = STRDUP("Hello World!");
+		CuAssertPtrNotNull(tc, a);
+		strtolower(&a);
+		CuAssertStrEquals(tc, "hello world!", a);
+		FREE(a);
+	}
+
+	{
+		char *a = STRDUP("HelloWorld!");
+		CuAssertPtrNotNull(tc, a);
+		strtolower(&a);
+		CuAssertStrEquals(tc, "helloworld!", a);
+		FREE(a);
+	}
+
+	{
+		char *a = STRDUP("hELLO wORLd!");
+		CuAssertPtrNotNull(tc, a);
+		strtolower(&a);
+		CuAssertStrEquals(tc, "hello world!", a);
+		FREE(a);
+	}
 
 	CuAssertIntEquals(tc, 0, xfree());
 }
@@ -711,6 +768,7 @@ CuSuite *suite_common(void) {
 	SUITE_ADD_TEST(suite, test_str_replace);
 	SUITE_ADD_TEST(suite, test_stricmp);
 	SUITE_ADD_TEST(suite, test_strnicmp);
+	SUITE_ADD_TEST(suite, test_strtolower);
 	SUITE_ADD_TEST(suite, test_file_get_contents);
 	SUITE_ADD_TEST(suite, test_calc_time_interval);
 

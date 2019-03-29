@@ -126,7 +126,7 @@ static void *thread(void *param) {
 	return (void *)NULL;
 }
 
-static void *addDevice(int reason, void *param) {
+static void *addDevice(int reason, void *param, void *userdata) {
 	struct JsonNode *jdevice = NULL;
 	struct JsonNode *jprotocols = NULL;
 	struct JsonNode *jid = NULL;
@@ -253,16 +253,16 @@ void pingInit(void) {
 	pping->multipleId = 0;
 	pping->masterOnly = 1;
 
-	options_add(&pping->options, 'c', "connected", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
-	options_add(&pping->options, 'd', "disconnected", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
-	options_add(&pping->options, 'i', "ip", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
+	options_add(&pping->options, "c", "connected", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
+	options_add(&pping->options, "d", "disconnected", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
+	options_add(&pping->options, "i", "ip", OPTION_HAS_VALUE, DEVICES_ID, JSON_STRING, NULL, "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
 
-	options_add(&pping->options, 0, "poll-interval", OPTION_HAS_VALUE, DEVICES_SETTING, JSON_NUMBER, (void *)10, "[0-9]");
+	options_add(&pping->options, "0", "poll-interval", OPTION_HAS_VALUE, DEVICES_SETTING, JSON_NUMBER, (void *)10, "[0-9]");
 
 	pping->gc=&gc;
 	pping->checkValues=&checkValues;
 
-	eventpool_callback(REASON_DEVICE_ADDED, addDevice);
+	eventpool_callback(REASON_DEVICE_ADDED, addDevice, NULL);
 }
 
 #if defined(MODULE) && !defined(_WIN32)

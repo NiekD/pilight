@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2013 - 2016 CurlyMo
+  Copyright (C) CurlyMo
 
   This Source Code Form is subject to the terms of the Mozilla Public
   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <libgen.h>
 #include <mbedtls/sha256.h>
 #include <valgrind/valgrind.h>
 
@@ -17,7 +18,9 @@
 #include "../libs/pilight/core/CuTest.h"
 #include "../libs/pilight/core/pilight.h"
 #include "../libs/pilight/core/network.h"
+#include "../libs/pilight/config/config.h"
 #include "../libs/pilight/protocols/protocol.h"
+#include "../libs/pilight/lua_c/lua.h"
 #include "../libs/libuv/uv.h"
 
 #include "alltests.h"
@@ -27,6 +30,7 @@
 
 static int dolist = 0;
 
+CuSuite *suite_config(void);
 CuSuite *suite_common(void);
 CuSuite *suite_network(void);
 CuSuite *suite_binary(void);
@@ -51,14 +55,17 @@ CuSuite *suite_webserver_rest(void);
 #endif
 CuSuite *suite_socket(void);
 CuSuite *suite_log(void);
+CuSuite *suite_lua_log(void);
 CuSuite *suite_lua_cast(void);
 CuSuite *suite_lua_datetime(void);
 CuSuite *suite_lua_c_metatable(void);
 CuSuite *suite_lua_common(void);
 CuSuite *suite_lua_async_thread(void);
 CuSuite *suite_lua_async_timer(void);
+CuSuite *suite_lua_async_event(void);
 CuSuite *suite_lua_network_mail(void);
 CuSuite *suite_lua_network_http(void);
+CuSuite *suite_lua_io(void);
 CuSuite *suite_lua_config(void);
 CuSuite *suite_protocols_433(void);
 CuSuite *suite_protocols_api(void);
@@ -74,7 +81,7 @@ CuSuite *suite_protocols_i2c(void);
 CuSuite *suite_protocols_gpio_ds18x20(void);
 CuSuite *suite_protocols_gpio_switch(void);
 CuSuite *suite_protocols_relay(void);
-CuSuite *suite_hardware_433gpio(void);
+CuSuite *suite_lua_hardware(void);
 CuSuite *suite_event_operators(void);
 CuSuite *suite_event_functions(void);
 CuSuite *suite_event_actions_switch(void);
@@ -105,6 +112,27 @@ int nr = 0;
 	printf("(%s #%d) %s\n", file, line, buffer);
 }*/
 
+void test_set_plua_path(CuTest *tc, char *a, char *b) {
+	char *file = STRDUP(a);
+	if(file == NULL) {
+		OUT_OF_MEMORY
+	}
+	str_replace(b, "", &file);
+
+	char *path = MALLOC(1024);
+	CuAssertPtrNotNull(tc, path);
+	snprintf(path, 1024, "%s../libs/pilight/lua/?/?.lua", file);
+	plua_package_path(path);
+	FREE(path);
+
+	path = MALLOC(1024);
+	CuAssertPtrNotNull(tc, path);
+	snprintf(path, 1024, "%s../libs/pilight/lua/?.lua", file);
+	plua_package_path(path);
+	FREE(path);
+	FREE(file);
+}
+
 int suiteFailed(void) {
 	int i = 0;
 	for(i=0;i<suite->count;i++) {
@@ -125,6 +153,18 @@ int RunAllTests(void) {
 
 	memtrack();
 
+	plua_coverage_output("lua");
+
+	char path[PATH_MAX] = { 0 };
+	char *file = STRDUP(__FILE__);
+	if(file == NULL) {
+		OUT_OF_MEMORY
+	}
+	str_replace("alltests.c", "", &file);
+	snprintf(path, PATH_MAX, "%s%s", file, "../libs/pilight/config/");
+	config_root(path);
+	FREE(file);
+
 	/*
 	 * Logging is asynchronous. If the log is being filled
 	 * when a test is already finished, xfree() is called
@@ -142,6 +182,7 @@ int RunAllTests(void) {
 	/*
 	 * Storage should be tested first
 	 */
+	suites[nr++] = suite_config();
 	suites[nr++] = suite_common();
 	suites[nr++] = suite_network();
 	suites[nr++] = suite_binary(); // Ported (Missing signed tests)
@@ -161,14 +202,17 @@ int RunAllTests(void) {
 	suites[nr++] = suite_arp();
 	suites[nr++] = suite_http(); // ipv4 ported / ipv6 not ported
 	suites[nr++] = suite_mail(); // ipv4 ported / ipv6 not ported
+	suites[nr++] = suite_lua_log(); // Ported
 	suites[nr++] = suite_lua_cast(); // Ported
 	suites[nr++] = suite_lua_c_metatable(); // Ported
 	suites[nr++] = suite_lua_datetime(); // Ported
 	suites[nr++] = suite_lua_common(); // Ported
 	suites[nr++] = suite_lua_async_thread(); // Ported
 	suites[nr++] = suite_lua_async_timer(); // Ported
+	suites[nr++] = suite_lua_async_event(); // Ported
 	suites[nr++] = suite_lua_network_mail(); // Ported
 	suites[nr++] = suite_lua_network_http();
+	suites[nr++] = suite_lua_io();
 	suites[nr++] = suite_lua_config(); // Ported
 #ifdef WEBSERVER
 	suites[nr++] = suite_webserver(); // Ported
@@ -191,7 +235,7 @@ int RunAllTests(void) {
 	suites[nr++] = suite_protocols_i2c();
 	suites[nr++] = suite_protocols_gpio_ds18x20();
 	suites[nr++] = suite_protocols_gpio_switch();
-	suites[nr++] = suite_hardware_433gpio(); // Ported
+	suites[nr++] = suite_lua_hardware(); // Ported
 #endif
 	suites[nr++] = suite_event_operators(); // Ported
 	suites[nr++] = suite_event_functions(); // Ported
@@ -227,12 +271,16 @@ int RunAllTests(void) {
 	}
 	CuSuiteDelete(suite);
 	CuStringDelete(output);
+
+	plua_flush_coverage();
+
 	return r;
 }
 
 int main(int argc, char **argv) {
 	remove("rapport.txt");
 	remove("test.log");
+	assert(open("test.log", O_TRUNC | O_WRONLY | O_APPEND | O_CREAT, 0666) > 0);
 
 	FILE *f = fopen("gplv3.txt", "w");
 	fprintf(f, "%s", gplv3);

@@ -83,7 +83,7 @@ static int main_gc(void) {
 	// return NULL;
 // }
 
-static void *receivePulseTrain(int reason, void *param) {
+static void *receivePulseTrain(int reason, void *param, void *userdata) {
 	struct reason_received_pulsetrain_t *data = param;
 	struct hardware_t *hw = NULL;
 	int i = 0;
@@ -170,7 +170,6 @@ int main(int argc, char **argv) {
 	struct options_t *options = NULL;
 	char *args = NULL;
 	char *fconfig = NULL;
-	pid_t pid = 0;
 
 	pilight.process = PROCESS_CLIENT;
 
@@ -206,14 +205,14 @@ int main(int argc, char **argv) {
 	log_file_disable();
 	log_level_set(LOG_NOTICE);
 
-	options_add(&options, 'H', "help", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'V', "version", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'C', "config", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
-	options_add(&options, 'L', "linefeed", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "H", "help", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "V", "version", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "C", "config", OPTION_HAS_VALUE, 0, JSON_NULL, NULL, NULL);
+	options_add(&options, "L", "linefeed", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
 
 	while (1) {
 		int c;
-		c = options_parse(&options, argc, argv, 1, &args);
+		c = options_parse1(&options, argc, argv, 1, &args, NULL);
 		if(c == -1)
 			break;
 		if(c == -2)
@@ -250,20 +249,28 @@ int main(int argc, char **argv) {
 	options_gc();
 	options = NULL;
 
-#ifdef _WIN32
-	if((pid = check_instances(L"pilight-raw")) != -1) {
-		logprintf(LOG_NOTICE, "pilight-raw is already running");
+	int *ret = NULL, n = 0;
+	if((n = isrunning("pilight-raw", &ret)) > 1) {
+		int i = 0;
+		for(i=0;i<n;i++) {
+			if(ret[i] != getpid()) {
+				logprintf(LOG_NOTICE, "pilight-raw is already running (%d)", ret[i]);
+				break;
+			}
+		}
+		FREE(ret);
 		goto close;
 	}
-#endif
 
-	if((pid = isrunning("pilight-daemon")) != -1) {
-		logprintf(LOG_NOTICE, "pilight-daemon instance found (%d)", (int)pid);
+	if((n = isrunning("pilight-daemon", &ret)) > 0) {
+		logprintf(LOG_NOTICE, "pilight-daemon instance found (%d)", ret[0]);
+		FREE(ret);
 		goto close;
 	}
 
-	if((pid = isrunning("pilight-debug")) != -1) {
-		logprintf(LOG_NOTICE, "pilight-debug instance found (%d)", (int)pid);
+	if((n = isrunning("pilight-debug", &ret)) > 0) {
+		logprintf(LOG_NOTICE, "pilight-debug instance found (%d)", ret[0]);
+		FREE(ret);
 		goto close;
 	}
 
@@ -277,7 +284,7 @@ int main(int argc, char **argv) {
 	}
 	FREE(fconfig);	
 
-	eventpool_callback(REASON_RECEIVED_PULSETRAIN, receivePulseTrain);
+	eventpool_callback(REASON_RECEIVED_PULSETRAIN, receivePulseTrain, NULL);
 
 	struct JsonNode *jrespond = NULL;
 	struct JsonNode *jchilds = NULL;

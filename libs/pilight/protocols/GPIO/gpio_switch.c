@@ -22,6 +22,7 @@
 #include "../../core/dso.h"
 #include "../../core/log.h"
 #include "../../core/eventpool.h"
+#include "../../config/settings.h"
 #include "../protocol.h"
 #include "gpio_switch.h"
 
@@ -99,7 +100,7 @@ static void poll_cb(uv_poll_t *req, int status, int events) {
 }
 
 #if defined(__arm__) || defined(__mips__) || defined(PILIGHT_UNITTEST)
-static void *addDevice(int reason, void *param) {
+static void *addDevice(int reason, void *param, void *userdata) {
 	struct JsonNode *jdevice = NULL;
 	struct JsonNode *jprotocols = NULL;
 	struct JsonNode *jid = NULL;
@@ -198,14 +199,21 @@ static int checkValues(struct JsonNode *jvalues) {
 #if defined(__arm__) || defined(__mips__) || defined(PILIGHT_UNITTEST)
 	struct JsonNode *jid = NULL;
 	char *platform = GPIO_PLATFORM;
-	if(settings_select_string(ORIGIN_MASTER, "gpio-platform", &platform) != 0 || strcmp(platform, "none") == 0) {
+	if(config_setting_get_string("gpio-platform", 0, &platform) != 0) {
+		logprintf(LOG_ERR, "gpio_switch: no gpio-platform configured");
+		return -1;
+	}
+	if(strcmp(platform, "none") == 0) {
+		FREE(platform);
 		logprintf(LOG_ERR, "gpio_switch: no gpio-platform configured");
 		return -1;
 	}
 	if(wiringXSetup(platform, _logprintf) < 0) {
+		FREE(platform);
 		logprintf(LOG_ERR, "unable to setup wiringX") ;
 		return -1;
 	} else if((jid = json_find_member(jvalues, "id"))) {
+		FREE(platform);
 		struct JsonNode *jchild = NULL;
 		struct JsonNode *jchild1 = NULL;
 
@@ -256,20 +264,20 @@ void gpioSwitchInit(void) {
 	gpio_switch->hwtype = SENSOR;
 	gpio_switch->multipleId = 0;
 
-	options_add(&gpio_switch->options, 't', "on", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
-	options_add(&gpio_switch->options, 'f', "off", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
-	options_add(&gpio_switch->options, 'g', "gpio", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, "^([0-9]{1}|1[0-9]|20)$");
-	options_add(&gpio_switch->options, 'r', "resolution", OPTION_HAS_VALUE, DEVICES_OPTIONAL, JSON_NUMBER, (void *)1000, "^[0-9]+$");
+	options_add(&gpio_switch->options, "t", "on", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
+	options_add(&gpio_switch->options, "f", "off", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
+	options_add(&gpio_switch->options, "g", "gpio", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, "^([0-9]{1}|1[0-9]|20)$");
+	options_add(&gpio_switch->options, "r", "resolution", OPTION_HAS_VALUE, DEVICES_OPTIONAL, JSON_NUMBER, (void *)1000, "^[0-9]+$");
 
-	options_add(&gpio_switch->options, 0, "readonly", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
-	options_add(&gpio_switch->options, 0, "confirm", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
+	options_add(&gpio_switch->options, "0", "readonly", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
+	options_add(&gpio_switch->options, "0", "confirm", OPTION_HAS_VALUE, GUI_SETTING, JSON_NUMBER, (void *)1, "^[10]{1}$");
 
 #if (!defined(__FreeBSD__) && !defined(_WIN32)) || defined(PILIGHT_UNITTEST)
 	gpio_switch->checkValues=&checkValues;
 	gpio_switch->gc = &gc;
 
 	#if defined(__arm__) || defined(__mips__) || defined(PILIGHT_UNITTEST)
-		eventpool_callback(REASON_DEVICE_ADDED, addDevice);
+		eventpool_callback(REASON_DEVICE_ADDED, addDevice, NULL);
 	#endif
 #endif
 }

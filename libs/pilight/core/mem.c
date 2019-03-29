@@ -111,8 +111,8 @@ int xfree(void) {
 
 void *__malloc(unsigned long a, const char *file, int line) {
 	if(memdbg == 1) {
-		struct mallocs_t *node = malloc(sizeof(mallocs_t));
-		if((node->p = malloc(a)) == NULL) {
+		struct mallocs_t *node = malloc(sizeof(struct mallocs_t));
+		if(node == NULL || ((node->p = malloc(a)) == NULL)) {
 			/*LCOV_EXCL_START*/
 			fprintf(stderr, "out of memory in %s at line #%d\n", file, line);
 			free(node);
@@ -298,7 +298,7 @@ void __free(void *a, const char *file, int line) {
 #endif
 
 			if(match == 0) {
-				fprintf(stderr, "ERROR: trying to free an unknown pointer in %s at line #%d\n", file, line);
+				fprintf(stderr, "ERROR: trying to free an unknown pointer (%p) in %s at line #%d\n", a, file, line);
 				free(a);
 			}
 		}

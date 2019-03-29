@@ -137,9 +137,10 @@ function M.check(parameters)
 		error("dim actions are formatted as \"dim DEVICE ... TO ...\"");
 	end
 
+	local config = pilight.config();
 	local nrdev = #parameters['DEVICE']['value'];
 	for i = 1, nrdev, 1 do
-		local dev = pilight.config.device(parameters['DEVICE']['value'][i]);
+		local dev = config.getDevice(parameters['DEVICE']['value'][i]);
 		if dev == nil then
 			error("device \"" .. parameters['DEVICE']['value'][i] .. "\" does not exist");
 		end
@@ -160,10 +161,12 @@ end
 function M.timer_for(timer)
 	local data = timer.getUserdata();
 	local devname = data['device'];
-	local devobj = pilight.config.device(devname);
+	local config = pilight.config();
+	local devobj = config.getDevice(devname);
 
 	if(devobj.getActionId() ~= data['action_id']) then
 		error("skipping overridden action dim for device " .. devname);
+		return;
 	end
 
 	if devobj.setState("on") == false then
@@ -206,30 +209,37 @@ end
 function M.timer_in(timer)
 	local data = timer.getUserdata();
 	local devname = data['device'];
-	local devobj = pilight.config.device(devname);
+	local config = pilight.config();
+	local devobj = config.getDevice(devname);
 
 	if devobj.setState("on") == false then
 		error("device \"" .. devname .. "\" could not be set to state \"on\"")
 	end
 
 	if devobj.setDimlevel(data['from_dimlevel']) == false then
-		error("device \"" .. devname .. "\" could not be set to dimlevel \"" .. data['new_dimlevel'] .. "\"")
+		error("device \"" .. devname .. "\" could not be set to dimlevel \"" .. data['from_dimlevel'] .. "\"")
 	end
 
 	devobj.send();
 
-	if data['direction'] == 1 then
+	if data['direction'] == false then
 		data['from_dimlevel'] = data['from_dimlevel'] + 1;
+		if (data['from_dimlevel'] - 1) == data['new_dimlevel'] then
+			if data['time_for'] ~= 0 and data['type_for'] ~= nil then
+				M.execute_for(data);
+			end
+			timer.stop();
+			return;
+		end
 	else
 		data['from_dimlevel'] = data['from_dimlevel'] - 1;
-	end
-
-	if (data['from_dimlevel'] + 1) == data['new_dimlevel'] then
-		if data['time_for'] ~= 0 and data['type_for'] ~= nil then
-			M.execute_for(data);
+		if (data['from_dimlevel'] + 1) == data['new_dimlevel'] then
+			if data['time_for'] ~= 0 and data['type_for'] ~= nil then
+				M.execute_for(data);
+			end
+			timer.stop();
+			return;
 		end
-		timer.stop();
-		return;
 	end
 end
 
@@ -264,7 +274,8 @@ end
 function M.thread(thread)
 	local data = thread.getUserdata();
 	local devname = data['device'];
-	local devobj = pilight.config.device(devname);
+	local config = pilight.config();
+	local devobj = config.getDevice(devname);
 
 	if(devobj.getActionId() ~= data['action_id']) then
 		error("skipping overridden action dim for device " .. devname);
@@ -288,7 +299,8 @@ end
 function M.timer_after(timer)
 	local data = timer.getUserdata();
 	local devname = data['device'];
-	local devobj = pilight.config.device(devname);
+	local config = pilight.config();
+	local devobj = config.getDevice(devname);
 
 	if(devobj.getActionId() ~= data['action_id']) then
 		error("skipping overridden action dim for device " .. devname);
@@ -298,18 +310,18 @@ function M.timer_after(timer)
 		error("device \"" .. devname .. "\" could not be set to state \"on\"")
 	end
 
-	if devobj.setDimlevel(data['new_dimlevel']) == false then
-		error("device \"" .. devname .. "\" could not be set to dimlevel \"" .. data['new_dimlevel'] .. "\"")
-	end
-
-	devobj.send();
-
 	if data['time_in'] > 0 and data['type_in'] ~= nil then
 		M.execute_in(data);
-	elseif data['time_for'] > 0 and data['type_for'] ~= nil then
-		M.execute_for(data);
-	end
+	else
+		if devobj.setDimlevel(data['new_dimlevel']) == false then
+			error("device \"" .. devname .. "\" could not be set to dimlevel \"" .. data['new_dimlevel'] .. "\"")
+		end
 
+		devobj.send();
+		if data['time_for'] > 0 and data['type_for'] ~= nil then
+			M.execute_for(data);
+		end
+	end
 end
 
 function M.run(parameters)
@@ -317,7 +329,8 @@ function M.run(parameters)
 
 	for i = 1, nrdev, 1 do
 		local devname = parameters['DEVICE']['value'][i];
-		local devobj = pilight.config.device(devname);
+		local config = pilight.config();
+		local devobj = config.getDevice(devname);
 		local old_dimlevel = nil;
 		local new_dimlevel = parameters['TO']['value'][1];
 		local from_dimlevel = nil;
